@@ -168,4 +168,4 @@ if __name__ == '__main__':
     # Initialisiere DB beim Start
     init_db()
     # Port 5000 ist Standard für viele Cloud-Hoster
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)))

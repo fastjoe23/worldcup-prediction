@@ -53,9 +53,11 @@
                         <option value="Spanien">Spanien</option>
                         <option value="Argentinien">Argentinien</option>
                     </select>
-                    <button onclick="submitTip()">Tipp abgeben</button>
+                    <button id="tipButton">Tipp abgeben</button>
                     <div id="msg"></div>
                 `;
+                // Attach event listener after DOM update
+                document.getElementById('tipButton').addEventListener('click', submitTip);
             } 
             else if (phase.includes("SIM")) {
                 container.innerHTML = "<h1>⚽ Simulation läuft!</h1><p>Die Tipps sind geschlossen. Schau auf die Leinwand für die Ergebnisse!</p>";

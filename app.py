@@ -21,7 +21,19 @@ app.secret_key = os.getenv('SECRET_KEY', os.urandom(24))
 CORS(app, supports_credentials=True)
 csrf = CSRFProtect(app)
 limiter = Limiter(app=app, key_func=get_remote_address)
-Talisman(app, force_https=False)  # force_https=False for local dev
+Talisman(app,
+         force_https=True,
+         content_security_policy={
+        'default-src': "'self'",
+        'script-src': [
+            "'self'",
+            "'unsafe-inline'"  # Erlaubt den <script> Block
+        ],
+        'style-src': [
+            "'self'",
+            "'unsafe-inline'"  # Erlaubt den <style> Block
+        ]
+    })
 
 # --- KONFIGURATION ---
 EVENT_ACCESS_CODE = os.getenv('EVENT_ACCESS_CODE', 'WM2026')

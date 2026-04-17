@@ -42,7 +42,7 @@
     <div class="btn-group" id="phase-buttons">
         </div>
 
-    <button class="btn-danger" onclick="resetDatabase()">⚠️ Datenbank zurücksetzen</button>
+    <button class="btn-danger" id="resetBtn">⚠️ Datenbank zurücksetzen</button>
     <div id="result"></div>
 </div>
 
@@ -57,9 +57,10 @@
             btn.innerText = p.replace(/_/g, ' ');
             btn.className = 'btn-phase';
             btn.id = 'btn-' + p;
-            btn.onclick = () => setPhase(p);
+            btn.addEventListener('click', () => setPhase(p));
             btnContainer.appendChild(btn);
         });
+        document.getElementById('resetBtn').addEventListener('click', resetDatabase);
         updateStatus();
     }
 

@@ -185,6 +185,25 @@ def submit_prediction():
     except Exception as e:
         return jsonify({'error': 'Fehler beim Speichern'}), 500
 
+@app.route('/api/admin/reset-db', methods=['POST'])
+@csrf.exempt # WICHTIG wegen deiner Security-Einstellungen
+def reset_db():
+    data = request.json
+    if data.get('password') != ADMIN_PASSWORD:
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('DELETE FROM predictions')
+                cur.execute('DELETE FROM tournament_results')
+                # Zurück auf Anfang setzen
+                cur.execute('UPDATE system_state SET current_phase = %s WHERE id = 1', (PHASES[0],))
+            conn.commit()
+        return jsonify({'success': True, 'message': 'Datenbank komplett geleert!'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     init_db()
     app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)))

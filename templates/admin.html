@@ -2,34 +2,113 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Panel</title>
+    <title>Admin Control Panel</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        button { display: block; width: 300px; padding: 15px; margin: 10px 0; font-size: 16px; cursor: pointer; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 40px; background: #f0f2f5; color: #333; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; font-size: 24px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; box-sizing: border-box; }
+        .status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; background: #007bff; color: white; font-weight: bold; margin-bottom: 20px; }
+        
+        .btn-group { display: flex; flex-direction: column; gap: 10px; }
+        button { 
+            padding: 15px; border: none; border-radius: 6px; cursor: pointer; 
+            font-size: 16px; font-weight: bold; transition: 0.3s;
+        }
+        .btn-phase { background: #e9ecef; color: #495057; text-align: left; }
+        .btn-phase:hover { background: #dee2e6; }
+        .btn-phase.active { background: #28a745; color: white; border-left: 8px solid #1e7e34; }
+        
+        .btn-danger { background: #dc3545; color: white; margin-top: 40px; width: 100%; }
+        .btn-danger:hover { background: #c82333; }
+        
+        #result { margin-top: 20px; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
-    <h1>Admin Control Panel</h1>
-    <input type="password" id="pw" placeholder="Admin Passwort"><br><br>
-    
-    <h3>Steuerung:</h3>
-    <button onclick="setPhase('START')">1. Event starten (Wartebildschirm)</button>
-    <button onclick="setPhase('RUNDE_1_TIPP')">2. Tipprunde 1 öffnen</button>
-    <button onclick="setPhase('RUNDE_1_SIM')">3. Tipps sperren & Simulation anzeigen</button>
-    
-    <p id="result"></p>
 
-    <script>
-        async function setPhase(phase) {
-            const pw = document.getElementById('pw').value;
-            const res = await fetch('/api/admin/set-phase', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({password: pw, phase: phase})
-            });
-            const data = await res.json();
-            document.getElementById('result').innerText = data.success ? "Erfolg: " + data.phase : data.error;
-        }
-    </script>
+<div class="container">
+    <h1>🚀 Event Steuerung</h1>
+    
+    <input type="password" id="pw" placeholder="Admin Passwort">
+    
+    <div>
+        <span>Aktueller Status:</span>
+        <div id="current-phase-display" class="status-badge">Lade...</div>
+    </div>
+
+    <div class="btn-group" id="phase-buttons">
+        </div>
+
+    <button class="btn-danger" onclick="resetDatabase()">⚠️ Datenbank zurücksetzen</button>
+    <div id="result"></div>
+</div>
+
+<script>
+    // Die Phasen müssen exakt mit PHASES in app.py übereinstimmen
+    const phases = ["START", "RUNDE_1_TIPP", "RUNDE_1_SIM", "RUNDE_2_TIPP", "FINALE_TIPP", "ENDE"];
+
+    function init() {
+        const btnContainer = document.getElementById('phase-buttons');
+        phases.forEach(p => {
+            const btn = document.createElement('button');
+            btn.innerText = p.replace(/_/g, ' ');
+            btn.className = 'btn-phase';
+            btn.id = 'btn-' + p;
+            btn.onclick = () => setPhase(p);
+            btnContainer.appendChild(btn);
+        });
+        updateStatus();
+    }
+
+    async function updateStatus() {
+        const res = await fetch('/api/state');
+        const data = await res.json();
+        document.getElementById('current-phase-display').innerText = data.phase;
+        
+        // Buttons highlighten
+        document.querySelectorAll('.btn-phase').forEach(b => b.classList.remove('active'));
+        const activeBtn = document.getElementById('btn-' + data.phase);
+        if(activeBtn) activeBtn.classList.add('active');
+    }
+
+    async function setPhase(phase) {
+        const pw = document.getElementById('pw').value;
+        const res = await fetch('/api/admin/set-phase', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: pw, phase: phase})
+        });
+        const data = await res.json();
+        showResult(data);
+        updateStatus();
+    }
+
+    async function resetDatabase() {
+        if(!confirm("Bist du sicher? Alle Tipps und Ergebnisse werden gelöscht!")) return;
+        
+        const pw = document.getElementById('pw').value;
+        const res = await fetch('/api/admin/reset-db', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: pw})
+        });
+        const data = await res.json();
+        showResult(data);
+        updateStatus();
+    }
+
+    function showResult(data) {
+        const resDiv = document.getElementById('result');
+        resDiv.innerText = data.success ? (data.message || "Erfolg!") : data.error;
+        resDiv.className = data.success ? "success" : "error";
+    }
+
+    init();
+    setInterval(updateStatus, 5000); // Status alle 5 Sek. auffrischen
+</script>
+
 </body>
 </html>

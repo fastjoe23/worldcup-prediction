@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WM Tippspiel</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 0 10px; background: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .hp-field { display: none; }
+        .hidden { display: none; }
+        input, select, button { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; font-weight: bold; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="card" id="app-container">
+        <h1>🏆 Lade Event-Status...</h1>
+    </div>
+
+    <script>
+        let currentPhase = "";
+
+        // Das "Kahoot-Polling": Fragt alle 3 Sekunden nach der Phase
+        async function checkPhase() {
+            try {
+                const res = await fetch('/api/state');
+                const data = await res.json();
+                
+                if (data.phase !== currentPhase) {
+                    currentPhase = data.phase;
+                    renderUI(currentPhase);
+                }
+            } catch (e) { console.error("Verbindungsproblem", e); }
+        }
+
+        setInterval(checkPhase, 3000);
+        checkPhase(); // Sofort beim Start ausführen
+
+        function renderUI(phase) {
+            const container = document.getElementById('app-container');
+            
+            if (phase === "START") {
+                container.innerHTML = "<h1>🏆 Willkommen!</h1><p>Gleich geht die erste Tipprunde los. Schau auf den Beamer!</p>";
+            } 
+            else if (phase.includes("TIPP")) {
+                container.innerHTML = `
+                    <h1>✍️ Tipprunde ist offen!</h1>
+                    <div class="hp-field"><input type="text" id="bot_email"></div>
+                    <input type="text" id="nickname" placeholder="Dein Nickname">
+                    <select id="winner">
+                        <option value="Deutschland">Deutschland</option>
+                        <option value="Spanien">Spanien</option>
+                        <option value="Argentinien">Argentinien</option>
+                    </select>
+                    <button onclick="submitTip()">Tipp abgeben</button>
+                    <div id="msg"></div>
+                `;
+            } 
+            else if (phase.includes("SIM")) {
+                container.innerHTML = "<h1>⚽ Simulation läuft!</h1><p>Die Tipps sind geschlossen. Schau auf die Leinwand für die Ergebnisse!</p>";
+            }
+        }
+
+        async function submitTip() {
+            const nick = document.getElementById('nickname').value;
+            const win = document.getElementById('winner').value;
+            const hp = document.getElementById('bot_email').value;
+
+            const res = await fetch('/predict', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({nickname: nick, selections: {winner: win}, email_hp: hp}),
+                credentials: 'include'  // Include cookies for session authentication
+            });
+            const data = await res.json();
+            document.getElementById('msg').innerText = data.message || data.error;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Dashboard</title>
+    <style>
+        body { font-family: sans-serif; background: #222; color: white; text-align: center; padding: 50px; }
+        h1 { font-size: 4em; color: #ffeb3b; }
+        #status-text { font-size: 2em; }
+    </style>
+</head>
+<body>
+    <h1>WM LIVE SIMULATION</h1>
+    <div id="status-text">Warte auf Start...</div>
+
+    <script>
+        setInterval(async () => {
+            const res = await fetch('/api/state');
+            const data = await res.json();
+            document.getElementById('status-text').innerText = "Aktuelle Phase: " + data.phase;
+            
+            // Später laden wir hier z.B. das Leaderboard rein, wenn die Phase auf "SIM" springt
+        }, 3000);
+    </script>
+</body>
+</html>

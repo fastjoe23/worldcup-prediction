@@ -245,11 +245,6 @@ def submit_nickname():
     if not valid:
         return jsonify({'error': error}), 400
     
-    # Speichere Nickname in Session für später
-    session['nickname'] = nickname
-    session.permanent = True
-    session.modified = True
-    
     # Speichere Nickname auch in der Participants-Tabelle (für Live-Übersicht)
     try:
         with get_db_connection() as conn:
@@ -257,7 +252,7 @@ def submit_nickname():
                 cur.execute('INSERT INTO participants (nickname) VALUES (%s) ON CONFLICT DO NOTHING', (nickname,))
             conn.commit()
     except Exception as e:
-        # Fehler bei DB-Insert ignorieren, Session wird trotzdem gespeichert
+        # Fehler bei DB-Insert ignorieren
         print(f"Error saving participant: {e}")
     
     return jsonify({'success': True, 'message': 'Nickname gespeichert!'})
@@ -278,10 +273,10 @@ def submit_selections():
     if get_phase() != "RUNDE_1_GRUPPEN_TIPP":
         return jsonify({'error': 'Gruppen-Tipps sind aktuell nicht möglich!'}), 403
 
-    # Nickname aus Session auslesen
-    nickname = session.get('nickname')
+    # Nickname aus Request-Body auslesen (nicht aus Session)
+    nickname = data.get('nickname')
     if not nickname:
-        return jsonify({'error': 'Kein Nickname in Session. Bitte zuerst Nickname wählen!'}), 400
+        return jsonify({'error': 'Kein Nickname angegeben. Bitte zuerst Nickname wählen!'}), 400
     
     selections = data.get('selections')
     

@@ -168,8 +168,16 @@
             }
             else if (phase === "RUNDE_1_GRUPPEN_TIPP") {
                 // Phase 2: Gruppensieger tippen
+                const savedNick = localStorage.getItem('userNickname');
                 let groupsHTML = `
                     <h1>✍️ Tipprunde ist offen!</h1>
+                `;
+                
+                if (savedNick) {
+                    groupsHTML += `<p style="color: #667eea; font-size: 1.2em; margin-bottom: 20px;">👋 Willkommen, <strong>${savedNick}</strong>!</p>`;
+                }
+                
+                groupsHTML += `
                     <p>Tipp den Gruppensieger für jede Gruppe:</p>
                     <div class="hp-field"><input type="text" id="bot_email"></div>
                 `;
@@ -226,6 +234,8 @@
             const data = await res.json();
             
             if (data.success) {
+                // Store nickname in localStorage for phase 2
+                localStorage.setItem('userNickname', nick);
                 showSuccessModal(
                     'Nickname gespeichert! 🎉',
                     `Dein Nickname: <strong>${nick}</strong>`,
@@ -239,6 +249,13 @@
 
         async function submitSelections() {
             const hp = document.getElementById('bot_email').value;
+            const nickname = localStorage.getItem('userNickname');
+            
+            if (!nickname) {
+                showSuccessModal('⚠️ Fehler', 'Kein Nickname gefunden. Bitte starte die Phase neu!');
+                setTimeout(clearSuccessModal, 3000);
+                return;
+            }
             
             // Sammle alle Gruppen-Tipps
             const selections = {};
@@ -264,7 +281,7 @@
             const res = await fetch('/api/submit-selections', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({selections: selections, email_hp: hp}),
+                body: JSON.stringify({nickname: nickname, selections: selections, email_hp: hp}),
                 credentials: 'include'
             });
             const data = await res.json();
@@ -278,6 +295,8 @@
             } else {
                 showSuccessModal('⚠️ Fehler', data.error);
                 setTimeout(clearSuccessModal, 3000);
+            }
+        }
             }
         }
     </script>

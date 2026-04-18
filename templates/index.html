@@ -167,7 +167,7 @@
                 document.getElementById('nicknameButton').addEventListener('click', submitNickname);
             }
             else if (phase === "RUNDE_1_GRUPPEN_TIPP") {
-                // Phase 2: Gruppensieger tippen
+                // Phase 2: Group winners (12 dropdowns)
                 const savedNick = localStorage.getItem('userNickname');
                 let groupsHTML = `
                     <h1>✍️ Tipprunde ist offen!</h1>
@@ -205,13 +205,123 @@
                 
                 container.innerHTML = groupsHTML;
                 document.getElementById('selectionsButton').addEventListener('click', submitSelections);
-            } 
+            }
+            else if (phase === "RUNDE_2_TIPP") {
+                // Round 2: Select 4 semi-finalists from 12 group winners
+                loadRound2UI(container);
+            }
+            else if (phase === "FINALE_TIPP") {
+                // Finals: Select 1 champion from 4 semi-finalists
+                loadFinalsUI(container);
+            }
             else if (phase.includes("TIPP")) {
                 // Fallback für andere Tipp-Phasen
                 container.innerHTML = "<h1>✍️ Tipprunde ist offen!</h1><p>Bitte einen Moment warten...</p>";
             }
             else if (phase.includes("SIM")) {
                 container.innerHTML = "<h1>⚽ Simulation läuft!</h1><p>Die Tipps sind geschlossen. Schau auf die Leinwand für die Ergebnisse!</p>";
+            }
+        }
+
+        async function loadRound2UI(container) {
+            const savedNick = localStorage.getItem('userNickname');
+            
+            try {
+                const res = await fetch('/api/latest-results');
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    container.innerHTML = "<h1>⚠️ Fehler</h1><p>Keine Ergebnisse aus Runde 1 gefunden!</p>";
+                    return;
+                }
+                
+                const teams = data.teams;
+                
+                let html = `
+                    <h1>🏅 Halbfinale-Tipps</h1>
+                `;
+                
+                if (savedNick) {
+                    html += `<p style="color: #667eea; font-size: 1.2em; margin-bottom: 20px;">👋 Willkommen, <strong>${savedNick}</strong>!</p>`;
+                }
+                
+                html += `
+                    <p>Wähle die 4 Teams aus, die ins Halbfinale kommen:</p>
+                    <div class="hp-field"><input type="text" id="bot_email"></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                `;
+                
+                teams.forEach(team => {
+                    html += `
+                        <label style="padding: 10px; background: #f0f0f0; border-radius: 4px; cursor: pointer;">
+                            <input type="checkbox" class="team-checkbox" value="${team}">
+                            ${team}
+                        </label>
+                    `;
+                });
+                
+                html += `
+                    </div>
+                    <button id="selectionsButton" style="margin-top: 20px;">Tipps abgeben</button>
+                    <div id="msg"></div>
+                `;
+                
+                container.innerHTML = html;
+                document.getElementById('selectionsButton').addEventListener('click', submitSelections);
+            } catch (e) {
+                container.innerHTML = "<h1>⚠️ Fehler</h1><p>Daten konnten nicht geladen werden.</p>";
+                console.error(e);
+            }
+        }
+
+        async function loadFinalsUI(container) {
+            const savedNick = localStorage.getItem('userNickname');
+            
+            try {
+                const res = await fetch('/api/latest-results');
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    container.innerHTML = "<h1>⚠️ Fehler</h1><p>Keine Ergebnisse aus Runde 2 gefunden!</p>";
+                    return;
+                }
+                
+                const teams = data.teams;
+                
+                let html = `
+                    <h1>🏆 Weltmeister-Tipp</h1>
+                `;
+                
+                if (savedNick) {
+                    html += `<p style="color: #667eea; font-size: 1.2em; margin-bottom: 20px;">👋 Willkommen, <strong>${savedNick}</strong>!</p>`;
+                }
+                
+                html += `
+                    <p>Wer wird Weltmeister?</p>
+                    <div class="hp-field"><input type="text" id="bot_email"></div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                `;
+                
+                teams.forEach(team => {
+                    html += `
+                        <label style="padding: 10px; background: #f0f0f0; border-radius: 4px; cursor: pointer;">
+                            <input type="radio" class="champion-radio" name="champion" value="${team}">
+                            ${team}
+                        </label>
+                    `;
+                });
+                
+                html += `
+                    </div>
+                    <button id="selectionsButton" style="margin-top: 20px;">Tipp abgeben</button>
+                    <div id="msg"></div>
+                `;
+                
+                container.innerHTML = html;
+                document.getElementById('selectionsButton').addEventListener('click', submitSelections);
+            } catch (e) {
+                container.innerHTML = "<h1>⚠️ Fehler</h1><p>Daten konnten nicht geladen werden.</p>";
+                console.error(e);
             }
         }
 
@@ -257,23 +367,58 @@
                 return;
             }
             
-            // Sammle alle Gruppen-Tipps
-            const selections = {};
-            let allSelected = true;
+            let selections = null;
             
-            for (const groupName of Object.keys(GROUPS)) {
-                const selectId = `group_${groupName.replace(/\s/g, '_')}`;
-                const selectedTeam = document.getElementById(selectId).value;
+            // RUNDE_1_GRUPPEN_TIPP: Gather 12 dropdown values
+            if (currentPhase === "RUNDE_1_GRUPPEN_TIPP") {
+                selections = {};
+                let allSelected = true;
                 
-                if (!selectedTeam) {
-                    allSelected = false;
-                    break;
+                for (const groupName of Object.keys(GROUPS)) {
+                    const selectId = `group_${groupName.replace(/\s/g, '_')}`;
+                    const selectedTeam = document.getElementById(selectId).value;
+                    
+                    if (!selectedTeam) {
+                        allSelected = false;
+                        break;
+                    }
+                    selections[groupName] = selectedTeam;
                 }
-                selections[groupName] = selectedTeam;
+                
+                if (!allSelected) {
+                    showSuccessModal('⚠️ Fehler', 'Bitte wähle einen Sieger für alle 12 Gruppen!');
+                    setTimeout(clearSuccessModal, 3000);
+                    return;
+                }
             }
             
-            if (!allSelected) {
-                showSuccessModal('⚠️ Fehler', 'Bitte wähle einen Sieger für alle 12 Gruppen!');
+            // RUNDE_2_TIPP: Gather checked checkboxes (exactly 4)
+            else if (currentPhase === "RUNDE_2_TIPP") {
+                const checkedBoxes = document.querySelectorAll('.team-checkbox:checked');
+                selections = Array.from(checkedBoxes).map(box => box.value);
+                
+                if (selections.length !== 4) {
+                    showSuccessModal('⚠️ Fehler', 'Bitte wähle exakt 4 Teams aus!');
+                    setTimeout(clearSuccessModal, 3000);
+                    return;
+                }
+            }
+            
+            // FINALE_TIPP: Gather selected radio button (exactly 1)
+            else if (currentPhase === "FINALE_TIPP") {
+                const selectedRadio = document.querySelector('.champion-radio:checked');
+                
+                if (!selectedRadio) {
+                    showSuccessModal('⚠️ Fehler', 'Bitte wähle einen Champion!');
+                    setTimeout(clearSuccessModal, 3000);
+                    return;
+                }
+                
+                selections = selectedRadio.value;
+            }
+            
+            if (selections === null) {
+                showSuccessModal('⚠️ Fehler', 'Unbekannte Phase!');
                 setTimeout(clearSuccessModal, 3000);
                 return;
             }

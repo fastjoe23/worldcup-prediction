@@ -46,7 +46,7 @@ Talisman(app,
 # --- KONFIGURATION ---
 EVENT_ACCESS_CODE = os.getenv('EVENT_ACCESS_CODE', 'WM2026')
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'change_me_in_env')
-PHASES = ["START", "RUNDE_1_NICKNAME", "RUNDE_1_GRUPPEN_TIPP", "RUNDE_1_SIM", "RUNDE_2_TIPP", "FINALE_TIPP", "ENDE"]
+PHASES = ["START", "RUNDE_1_NICKNAME", "RUNDE_1_GRUPPEN_TIPP", "RUNDE_1_SIM", "RUNDE_2_TIPP", "RUNDE_2_SIM", "FINALE_TIPP", "FINALE_SIM", "ENDE"]
 
 TEAM_STRENGTHS = {
     "Argentinien": 92, "Frankreich": 91, "Brasilien": 89, "Deutschland": 85, "Spanien": 87
@@ -103,25 +103,46 @@ def validate_nickname(nickname):
     return True, None
 
 def validate_selections(selections):
-    """Validate selections data for group winners"""
-    if not isinstance(selections, dict):
-        return False, "Selections müssen ein Objekt sein"
-    if json.dumps(selections).__sizeof__() > MAX_SELECTIONS_SIZE:
-        return False, "Selections zu groß"
+    """Validate selections data based on current phase"""
+    phase = get_phase()
     
-    # Check that exactly 12 groups are present
-    if len(selections) != 12:
-        return False, "Es müssen exakt 12 Gruppen-Tipps eingereicht werden"
-    
-    # Validate each group selection
-    for group_name, selected_team in selections.items():
-        # Check if group exists
-        if group_name not in GROUPS:
-            return False, f"Ungültige Gruppe: {group_name}"
+    # RUNDE_1: 12 groups - expect dict
+    if "RUNDE_1" in phase:
+        if not isinstance(selections, dict):
+            return False, "Selections müssen ein Objekt sein"
+        if json.dumps(selections).__sizeof__() > MAX_SELECTIONS_SIZE:
+            return False, "Selections zu groß"
         
-        # Check if selected team is in the group
-        if selected_team not in GROUPS[group_name]:
-            return False, f"Team '{selected_team}' nicht in {group_name}"
+        # Check that exactly 12 groups are present
+        if len(selections) != 12:
+            return False, "Es müssen exakt 12 Gruppen-Tipps eingereicht werden"
+        
+        # Validate each group selection
+        for group_name, selected_team in selections.items():
+            if group_name not in GROUPS:
+                return False, f"Ungültige Gruppe: {group_name}"
+            if selected_team not in GROUPS[group_name]:
+                return False, f"Team '{selected_team}' nicht in {group_name}"
+    
+    # RUNDE_2: 4 teams from semi-finalists - expect list
+    elif "RUNDE_2" in phase:
+        if not isinstance(selections, list):
+            return False, "Selections müssen ein Array sein"
+        
+        if len(selections) != 4:
+            return False, "Es müssen exakt 4 Teams ausgewählt werden"
+        
+        for team in selections:
+            if not isinstance(team, str) or len(team.strip()) == 0:
+                return False, "Ungültige Team-Auswahl"
+    
+    # FINALE: 1 team - expect string
+    elif "FINALE" in phase:
+        if not isinstance(selections, str):
+            return False, "Selection muss ein Team-Name sein"
+        
+        if len(selections.strip()) == 0:
+            return False, "Bitte wähle einen Champion aus"
     
     return True, None
 
@@ -129,28 +150,35 @@ def validate_selections(selections):
 def calculate_score(user_selections, test_results, phase):
     """
     Calculate score for user selections based on test results and phase.
-    Can be extended for different scoring rules per phase.
     
     Args:
-        user_selections: Dict with group_name -> selected_team
-        test_results: Dict with group_name -> correct_team
+        user_selections: Data structure depends on phase (dict/list/string)
+        test_results: Expected structure depends on phase
         phase: Current phase (e.g., "RUNDE_1_GRUPPEN_TIPP")
     
     Returns:
-        Integer score (number of correct predictions)
+        Integer score
     """
     score = 0
     
-    # Standard scoring: 1 point per correct match
-    # Can be extended for different phases with different multipliers
     if "GRUPPEN_TIPP" in phase:
-        # Group winner predictions: 1 point per correct team
+        # Round 1: 1 point per correct group winner
         for group, user_team in user_selections.items():
             if group in test_results and test_results[group] == user_team:
                 score += 1
     
-    # Add phase-specific scoring rules here as needed
-    # Example: elif "FINALE" in phase: score = user_team == test_results ? 10 : 0
+    elif "RUNDE_2_TIPP" in phase:
+        # Round 2: 5 points per selected team that reached the semi-finals
+        # test_results is a list of 4 teams
+        for user_team in user_selections:
+            if user_team in test_results:
+                score += 5
+    
+    elif "FINALE_TIPP" in phase:
+        # Finale: 10 points if selected champion is correct
+        # test_results is a single string (the champion)
+        if user_selections == test_results:
+            score += 10
     
     return score
 
@@ -164,6 +192,7 @@ def init_db():
             # Tabelle für Teilnehmer (live Übersicht während Nickname-Phase)
             cur.execute('''CREATE TABLE IF NOT EXISTS participants (
                 id SERIAL PRIMARY KEY, nickname VARCHAR(50) NOT NULL UNIQUE,
+                score INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
             
             # Tabelle für Tipps und Ergebnisse
@@ -244,6 +273,30 @@ def get_participants():
         })
     except Exception as e:
         return jsonify({'error': 'Fehler beim Abrufen der Teilnehmer'}), 500
+
+@app.route('/api/latest-results', methods=['GET'])
+def latest_results():
+    """Get the most recent tournament results (e.g., semi-finalists or teams in finals)"""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT results FROM tournament_results ORDER BY id DESC LIMIT 1')
+                result = cur.fetchone()
+        
+        if not result:
+            return jsonify({'error': 'Keine Ergebnisse gefunden'}), 404
+        
+        results = result['results']
+        # Convert dict to list if it's a dict (for RUNDE_1 - group winners)
+        # Keep as is if it's a list (for RUNDE_2 - semi-finalists)
+        if isinstance(results, dict):
+            teams = list(results.values())
+        else:
+            teams = results if isinstance(results, list) else [results]
+        
+        return jsonify({'teams': teams})
+    except Exception as e:
+        return jsonify({'error': f'Fehler: {str(e)}'}), 500
 
 @app.route('/api/admin/set-phase', methods=['POST'])
 @limiter.limit("5 per minute")  # Prevent brute force attempts
@@ -358,52 +411,136 @@ def reset_db():
 @app.route('/api/admin/run-simulation', methods=['POST'])
 @csrf.exempt
 def run_simulation():
-    """Run simulation for RUNDE_1_GRUPPEN_TIPP: save test results, calculate scores, update phase"""
+    """Run phase-specific simulation: save results, calculate scores, update phase"""
     data = request.json
     if data.get('password') != ADMIN_PASSWORD:
         return jsonify({'error': 'Nicht autorisiert'}), 403
     
+    phase = get_phase()
+    
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                # FAKE SIMULATION 
-                # 1. Speichere TEST_RESULTS in tournament_results
-                cur.execute(
-                    'INSERT INTO tournament_results (results, is_final) VALUES (%s, %s)',
-                    (json.dumps(TEST_RESULTS), True)
-                )
-                
-                # 2. Hole alle predictions für RUNDE_1_GRUPPEN_TIPP
-                cur.execute(
-                    'SELECT id, nickname, selections FROM predictions WHERE phase = %s',
-                    (PHASES[2],)  # RUNDE_1_GRUPPEN_TIPP
-                )
-                predictions = cur.fetchall()
-                
-                # 3. Berechne Punkte für jeden User
-                for pred in predictions:
-                    user_selections = json.loads(pred['selections']) if isinstance(pred['selections'], str) else pred['selections']
-                    score = calculate_score(user_selections, TEST_RESULTS, "RUNDE_1_GRUPPEN_TIPP")
-                    
-                    # 4. Update score in predictions
+                # --- RUNDE_1_GRUPPEN_TIPP Simulation ---
+                if phase == "RUNDE_1_GRUPPEN_TIPP":
+                    # Save static test results (12 group winners)
                     cur.execute(
-                        'UPDATE predictions SET score = %s WHERE id = %s',
-                        (score, pred['id'])
+                        'INSERT INTO tournament_results (results, is_final) VALUES (%s, %s)',
+                        (json.dumps(TEST_RESULTS), True)
                     )
+                    
+                    # Get all Round 1 predictions
+                    cur.execute('SELECT id, nickname, selections FROM predictions WHERE phase = %s', ("RUNDE_1_GRUPPEN_TIPP",))
+                    predictions = cur.fetchall()
+                    
+                    # Calculate and update scores
+                    for pred in predictions:
+                        user_selections = json.loads(pred['selections']) if isinstance(pred['selections'], str) else pred['selections']
+                        score = calculate_score(user_selections, TEST_RESULTS, "RUNDE_1_GRUPPEN_TIPP")
+                        
+                        cur.execute('UPDATE predictions SET score = %s WHERE id = %s', (score, pred['id']))
+                        cur.execute('UPDATE participants SET score = COALESCE(score, 0) + %s WHERE nickname = %s', (score, pred['nickname']))
+                    
+                    # Update phase
+                    cur.execute('UPDATE system_state SET current_phase = %s WHERE id = 1', ("RUNDE_1_SIM",))
+                    conn.commit()
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': f'Runde 1 Simulation komplett! {len(predictions)} User bewertet.'
+                    })
                 
-                # 5. Setze Phase auf RUNDE_1_SIM
-                cur.execute(
-                    'UPDATE system_state SET current_phase = %s WHERE id = 1',
-                    ("RUNDE_1_SIM",)
-                )
-            
-            conn.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': f'Simulation komplett! {len(predictions)} User bewertet.',
-            'details': f'TEST_RESULTS: {TEST_RESULTS}'
-        })
+                # --- RUNDE_2_TIPP Simulation ---
+                elif phase == "RUNDE_2_TIPP":
+                    # Get the 12 group winners from Round 1 results
+                    cur.execute('SELECT results FROM tournament_results ORDER BY id DESC LIMIT 1')
+                    prev_result = cur.fetchone()
+                    
+                    if not prev_result:
+                        return jsonify({'error': 'Keine Runde 1 Ergebnisse gefunden'}), 400
+                    
+                    group_winners = prev_result['results']
+                    if isinstance(group_winners, dict):
+                        all_teams = list(group_winners.values())
+                    else:
+                        all_teams = group_winners
+                    
+                    # Fake semi-finalists: first 4 teams
+                    semi_finalists = all_teams[:4]
+                    
+                    # Save semi-finalists as list
+                    cur.execute(
+                        'INSERT INTO tournament_results (results, is_final) VALUES (%s, %s)',
+                        (json.dumps(semi_finalists), True)
+                    )
+                    
+                    # Get all Round 2 predictions
+                    cur.execute('SELECT id, nickname, selections FROM predictions WHERE phase = %s', ("RUNDE_2_TIPP",))
+                    predictions = cur.fetchall()
+                    
+                    # Calculate and update scores
+                    for pred in predictions:
+                        user_selections = json.loads(pred['selections']) if isinstance(pred['selections'], str) else pred['selections']
+                        score = calculate_score(user_selections, semi_finalists, "RUNDE_2_TIPP")
+                        
+                        cur.execute('UPDATE predictions SET score = %s WHERE id = %s', (score, pred['id']))
+                        cur.execute('UPDATE participants SET score = COALESCE(score, 0) + %s WHERE nickname = %s', (score, pred['nickname']))
+                    
+                    # Update phase
+                    cur.execute('UPDATE system_state SET current_phase = %s WHERE id = 1', ("RUNDE_2_SIM",))
+                    conn.commit()
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': f'Runde 2 Simulation komplett! {len(predictions)} User bewertet.'
+                    })
+                
+                # --- FINALE_TIPP Simulation ---
+                elif phase == "FINALE_TIPP":
+                    # Get the 4 semi-finalists from Round 2 results
+                    cur.execute('SELECT results FROM tournament_results ORDER BY id DESC LIMIT 1')
+                    prev_result = cur.fetchone()
+                    
+                    if not prev_result:
+                        return jsonify({'error': 'Keine Runde 2 Ergebnisse gefunden'}), 400
+                    
+                    semi_finalists = prev_result['results']
+                    if isinstance(semi_finalists, str):
+                        semi_finalists = [semi_finalists]
+                    
+                    # Fake champion: first team from semi-finalists
+                    champion = semi_finalists[0]
+                    
+                    # Save champion
+                    cur.execute(
+                        'INSERT INTO tournament_results (results, is_final) VALUES (%s, %s)',
+                        (json.dumps(champion), True)
+                    )
+                    
+                    # Get all Finale predictions
+                    cur.execute('SELECT id, nickname, selections FROM predictions WHERE phase = %s', ("FINALE_TIPP",))
+                    predictions = cur.fetchall()
+                    
+                    # Calculate and update scores
+                    for pred in predictions:
+                        user_selections = json.loads(pred['selections']) if isinstance(pred['selections'], str) else pred['selections']
+                        score = calculate_score(user_selections, champion, "FINALE_TIPP")
+                        
+                        cur.execute('UPDATE predictions SET score = %s WHERE id = %s', (score, pred['id']))
+                        cur.execute('UPDATE participants SET score = COALESCE(score, 0) + %s WHERE nickname = %s', (score, pred['nickname']))
+                    
+                    # Update phase
+                    cur.execute('UPDATE system_state SET current_phase = %s WHERE id = 1', ("FINALE_SIM",))
+                    conn.commit()
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': f'Finale Simulation komplett! {len(predictions)} User bewertet.'
+                    })
+                
+                else:
+                    return jsonify({'error': f'Simulation für {phase} nicht verfügbar'}), 400
+    
     except Exception as e:
         return jsonify({'error': f'Simulationsfehler: {str(e)}'}), 500
 

@@ -361,9 +361,9 @@ def submit_selections():
         if data.get('access_token') != EVENT_ACCESS_CODE:
             return jsonify({'error': 'Nicht autorisiert.'}), 403
     
-    # Prüfen, ob wir in der Gruppen-Tipp-Phase sind
-    if get_phase() != "RUNDE_1_GRUPPEN_TIPP":
-        return jsonify({'error': 'Gruppen-Tipps sind aktuell nicht möglich!'}), 403
+    # Prüfen, ob wir in einer Tipp-Phase sind (RUNDE_1_GRUPPEN_TIPP, RUNDE_2_TIPP, FINALE_TIPP)
+    if not get_phase().endswith("_TIPP"):
+        return jsonify({'error': 'Tipps sind aktuell nicht möglich!'}), 403
 
     # Nickname aus Request-Body auslesen (nicht aus Session)
     nickname = data.get('nickname')

@@ -116,7 +116,12 @@ def get_db_connection():
 def init_db():
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # Deine alten Tabellen
+            # Tabelle für Teilnehmer (live Übersicht während Nickname-Phase)
+            cur.execute('''CREATE TABLE IF NOT EXISTS participants (
+                id SERIAL PRIMARY KEY, nickname VARCHAR(50) NOT NULL UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            
+            # Tabelle für Tipps und Ergebnisse
             cur.execute('''CREATE TABLE IF NOT EXISTS predictions (
                 id SERIAL PRIMARY KEY, nickname VARCHAR(50) NOT NULL,
                 round INTEGER NOT NULL,
@@ -188,6 +193,21 @@ def dashboard_page():
 def current_state():
     return jsonify({'phase': get_phase()})
 
+@app.route('/api/participants', methods=['GET'])
+def get_participants():
+    """Get list of all participants (nicknames) who have joined"""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT nickname, created_at FROM participants ORDER BY created_at ASC')
+                participants = cur.fetchall()
+        return jsonify({
+            'count': len(participants),
+            'participants': participants
+        })
+    except Exception as e:
+        return jsonify({'error': 'Fehler beim Abrufen der Teilnehmer'}), 500
+
 @app.route('/api/admin/set-phase', methods=['POST'])
 @limiter.limit("5 per minute")  # Prevent brute force attempts
 @csrf.exempt # Exempt CSRF for API but enforce other validations
@@ -229,6 +249,17 @@ def submit_nickname():
     session['nickname'] = nickname
     session.permanent = True
     session.modified = True
+    
+    # Speichere Nickname auch in der Participants-Tabelle (für Live-Übersicht)
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('INSERT INTO participants (nickname) VALUES (%s) ON CONFLICT DO NOTHING', (nickname,))
+            conn.commit()
+    except Exception as e:
+        # Fehler bei DB-Insert ignorieren, Session wird trotzdem gespeichert
+        print(f"Error saving participant: {e}")
+    
     return jsonify({'success': True, 'message': 'Nickname gespeichert!'})
 
 @app.route('/api/submit-selections', methods=['POST'])
@@ -282,6 +313,7 @@ def reset_db():
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute('DELETE FROM predictions')
+                cur.execute('DELETE FROM participants')
                 cur.execute('DELETE FROM tournament_results')
                 # Zurück auf Anfang setzen
                 cur.execute('UPDATE system_state SET current_phase = %s WHERE id = 1', (PHASES[0],))

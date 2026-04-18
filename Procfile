@@ -1,1 +1,1 @@
-web: gunicorn -w 4 -b 0.0.0.0:8080 app:app
+web: python run_migrations.py && gunicorn -w 4 -b 0.0.0.0:8080 app:app

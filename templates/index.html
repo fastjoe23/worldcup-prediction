@@ -21,6 +21,22 @@
     <script>
         let currentPhase = "";
 
+        // WM 2026 Gruppen und Teams
+        const GROUPS = {
+            "Gruppe A": ["Mexiko", "Südafrika", "Südkorea", "Tschechien"],
+            "Gruppe B": ["Kanada", "Bosnien & Herzegowina", "Katar", "Schweiz"],
+            "Gruppe C": ["Brasilien", "Marokko", "Haiti", "Schottland"],
+            "Gruppe D": ["USA", "Paraguay", "Australien", "Türkei"],
+            "Gruppe E": ["Deutschland", "Curaçao", "Elfenbeinküste", "Ecuador"],
+            "Gruppe F": ["Niederlande", "Japan", "Schweden", "Tunesien"],
+            "Gruppe G": ["Belgien", "Ägypten", "Iran", "Neuseeland"],
+            "Gruppe H": ["Spanien", "Kap Verde", "Saudi-Arabien", "Uruguay"],
+            "Gruppe I": ["Frankreich", "Senegal", "Irak", "Norwegen"],
+            "Gruppe J": ["Argentinien", "Algerien", "Österreich", "Jordanien"],
+            "Gruppe K": ["Portugal", "DR Kongo", "Usbekistan", "Kolumbien"],
+            "Gruppe L": ["England", "Kroatien", "Ghana", "Panama"]
+        };
+
         // Das "Kahoot-Polling": Fragt alle 3 Sekunden nach der Phase
         async function checkPhase() {
             try {
@@ -43,37 +59,106 @@
             if (phase === "START") {
                 container.innerHTML = "<h1>🏆 Willkommen!</h1><p>Gleich geht die erste Tipprunde los. Schau auf den Beamer!</p>";
             } 
-            else if (phase.includes("TIPP")) {
+            else if (phase === "RUNDE_1_NICKNAME") {
+                // Phase 1: Nickname wählen
                 container.innerHTML = `
-                    <h1>✍️ Tipprunde ist offen!</h1>
+                    <h1>✍️ Gib deinen Nickname ein</h1>
+                    <p>Dein Nickname wird für alle deine Tipps verwendet.</p>
                     <div class="hp-field"><input type="text" id="bot_email"></div>
-                    <input type="text" id="nickname" placeholder="Dein Nickname">
-                    <select id="winner">
-                        <option value="Deutschland">Deutschland</option>
-                        <option value="Spanien">Spanien</option>
-                        <option value="Argentinien">Argentinien</option>
-                    </select>
-                    <button id="tipButton">Tipp abgeben</button>
+                    <input type="text" id="nickname" placeholder="Dein Nickname" maxlength="50">
+                    <button id="nicknameButton">Nickname bestätigen</button>
                     <div id="msg"></div>
                 `;
-                // Attach event listener after DOM update
-                document.getElementById('tipButton').addEventListener('click', submitTip);
+                document.getElementById('nicknameButton').addEventListener('click', submitNickname);
+            }
+            else if (phase === "RUNDE_1_GRUPPEN_TIPP") {
+                // Phase 2: Gruppensieger tippen
+                let groupsHTML = `
+                    <h1>✍️ Tipprunde ist offen!</h1>
+                    <p>Tipp den Gruppensieger für jede Gruppe:</p>
+                    <div class="hp-field"><input type="text" id="bot_email"></div>
+                `;
+                
+                for (const [groupName, teams] of Object.entries(GROUPS)) {
+                    groupsHTML += `
+                        <div style="margin: 15px 0; padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                            <label style="display: block; font-weight: bold; margin-bottom: 8px;">${groupName}</label>
+                            <select id="group_${groupName.replace(/\s/g, '_')}" style="width: 100%; padding: 8px;">
+                                <option value="">-- Wähle einen Sieger --</option>
+                    `;
+                    teams.forEach(team => {
+                        groupsHTML += `<option value="${team}">${team}</option>`;
+                    });
+                    groupsHTML += `
+                            </select>
+                        </div>
+                    `;
+                }
+                
+                groupsHTML += `
+                    <button id="selectionsButton">Tipps abgeben</button>
+                    <div id="msg"></div>
+                `;
+                
+                container.innerHTML = groupsHTML;
+                document.getElementById('selectionsButton').addEventListener('click', submitSelections);
             } 
+            else if (phase.includes("TIPP")) {
+                // Fallback für andere Tipp-Phasen
+                container.innerHTML = "<h1>✍️ Tipprunde ist offen!</h1><p>Bitte einen Moment warten...</p>";
+            }
             else if (phase.includes("SIM")) {
                 container.innerHTML = "<h1>⚽ Simulation läuft!</h1><p>Die Tipps sind geschlossen. Schau auf die Leinwand für die Ergebnisse!</p>";
             }
         }
 
-        async function submitTip() {
+        async function submitNickname() {
             const nick = document.getElementById('nickname').value;
-            const win = document.getElementById('winner').value;
             const hp = document.getElementById('bot_email').value;
 
-            const res = await fetch('/predict', {
+            if (!nick) {
+                document.getElementById('msg').innerText = "Bitte Nickname eingeben!";
+                return;
+            }
+
+            const res = await fetch('/api/submit-nickname', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({nickname: nick, selections: {winner: win}, email_hp: hp}),
-                credentials: 'include'  // Include cookies for session authentication
+                body: JSON.stringify({nickname: nick, email_hp: hp}),
+                credentials: 'include'
+            });
+            const data = await res.json();
+            document.getElementById('msg').innerText = data.message || data.error;
+        }
+
+        async function submitSelections() {
+            const hp = document.getElementById('bot_email').value;
+            
+            // Sammle alle Gruppen-Tipps
+            const selections = {};
+            let allSelected = true;
+            
+            for (const groupName of Object.keys(GROUPS)) {
+                const selectId = `group_${groupName.replace(/\s/g, '_')}`;
+                const selectedTeam = document.getElementById(selectId).value;
+                
+                if (!selectedTeam) {
+                    allSelected = false;
+                    break;
+                }
+                selections[groupName] = selectedTeam;
+            }
+            
+            if (!allSelected) {
+                document.getElementById('msg').innerText = "Bitte alle 12 Gruppen wählen!";
+                return;
+            }
+
+            const res = await fetch('/api/submit-selections', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({selections: selections, email_hp: hp}),
+                credentials: 'include'
             });
             const data = await res.json();
             document.getElementById('msg').innerText = data.message || data.error;

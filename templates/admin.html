@@ -49,7 +49,8 @@
 
 <script>
     // Die Phasen müssen exakt mit PHASES in app.py übereinstimmen
-    const phases = ["START", "RUNDE_1_NICKNAME", "RUNDE_1_GRUPPEN_TIPP", "RUNDE_1_SIM", "RUNDE_2_TIPP", "FINALE_TIPP", "ENDE"];
+    const phases = ["START", "RUNDE_1_NICKNAME", "RUNDE_1_GRUPPEN_TIPP", "RUNDE_1_SIM", "RUNDE_2_TIPP", "RUNDE_2_SIM", "FINALE_TIPP", "FINALE_SIM", "ENDE"];
+
 
     function init() {
         const btnContainer = document.getElementById('phase-buttons');
@@ -79,9 +80,9 @@
     async function setPhase(phase) {
         const pw = document.getElementById('pw').value;
         
-        // Spezialfall: RUNDE_1_SIM startet die Simulation
-        if (phase === 'RUNDE_1_SIM') {
-            if(!confirm("Simulation starten? TEST_RESULTS werden gespeichert und alle Tipps bewertet!")) return;
+        // Spezialfall: Alle _SIM Phasen starten die Simulation (RUNDE_1_SIM, RUNDE_2_SIM, FINALE_SIM)
+        if (phase.endsWith('_SIM')) {
+            if(!confirm("Simulation starten? Alle Tipps werden bewertet!")) return;
             const res = await fetch('/api/admin/run-simulation', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},

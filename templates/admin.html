@@ -42,6 +42,7 @@
     <div class="btn-group" id="phase-buttons">
         </div>
 
+
     <button class="btn-danger" id="resetBtn">⚠️ Datenbank zurücksetzen</button>
     <div id="result"></div>
 </div>
@@ -77,6 +78,22 @@
 
     async function setPhase(phase) {
         const pw = document.getElementById('pw').value;
+        
+        // Spezialfall: RUNDE_1_SIM startet die Simulation
+        if (phase === 'RUNDE_1_SIM') {
+            if(!confirm("Simulation starten? TEST_RESULTS werden gespeichert und alle Tipps bewertet!")) return;
+            const res = await fetch('/api/admin/run-simulation', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({password: pw})
+            });
+            const data = await res.json();
+            showResult(data);
+            updateStatus();
+            return;
+        }
+        
+        // Normale Phase-Änderung
         const res = await fetch('/api/admin/set-phase', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -108,7 +125,7 @@
     }
 
     init();
-    setInterval(updateStatus, 5000); // Status alle 5 Sek. auffrischen
+    setInterval(updateStatus, 3000); // Status alle 5 Sek. auffrischen
 </script>
 
 </body>

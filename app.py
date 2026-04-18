@@ -68,6 +68,22 @@ GROUPS = {
     "Gruppe L": ["England", "Kroatien", "Ghana", "Panama"]
 }
 
+# Statische Test-Ergebnisse für die Simulation (erstes Team jeder Gruppe)
+TEST_RESULTS = {
+    "Gruppe A": "Mexiko",
+    "Gruppe B": "Kanada",
+    "Gruppe C": "Brasilien",
+    "Gruppe D": "USA",
+    "Gruppe E": "Deutschland",
+    "Gruppe F": "Niederlande",
+    "Gruppe G": "Belgien",
+    "Gruppe H": "Spanien",
+    "Gruppe I": "Frankreich",
+    "Gruppe J": "Argentinien",
+    "Gruppe K": "Portugal",
+    "Gruppe L": "England"
+}
+
 # Input validation constraints
 MAX_NICKNAME_LENGTH = 50
 MAX_SELECTIONS_SIZE = 5000  # Max JSON size in bytes
@@ -109,6 +125,35 @@ def validate_selections(selections):
     
     return True, None
 
+# Scoring-Logik für verschiedene Phasen
+def calculate_score(user_selections, test_results, phase):
+    """
+    Calculate score for user selections based on test results and phase.
+    Can be extended for different scoring rules per phase.
+    
+    Args:
+        user_selections: Dict with group_name -> selected_team
+        test_results: Dict with group_name -> correct_team
+        phase: Current phase (e.g., "RUNDE_1_GRUPPEN_TIPP")
+    
+    Returns:
+        Integer score (number of correct predictions)
+    """
+    score = 0
+    
+    # Standard scoring: 1 point per correct match
+    # Can be extended for different phases with different multipliers
+    if "GRUPPEN_TIPP" in phase:
+        # Group winner predictions: 1 point per correct team
+        for group, user_team in user_selections.items():
+            if group in test_results and test_results[group] == user_team:
+                score += 1
+    
+    # Add phase-specific scoring rules here as needed
+    # Example: elif "FINALE" in phase: score = user_team == test_results ? 10 : 0
+    
+    return score
+
 # --- DATENBANK ---
 def get_db_connection():
     return psycopg.connect(os.getenv('DATABASE_URL'), row_factory=dict_row)
@@ -133,7 +178,7 @@ def init_db():
                 id SERIAL PRIMARY KEY, results JSONB NOT NULL,
                 is_final BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
             
-            # NEU: Tabelle für den Event-Status (nur 1 Zeile)
+            # Tabelle für den Event-Status (nur 1 Zeile)
             cur.execute('''CREATE TABLE IF NOT EXISTS system_state (
                 id INTEGER PRIMARY KEY, current_phase VARCHAR(50) NOT NULL)''')
             
@@ -309,6 +354,58 @@ def reset_db():
         return jsonify({'success': True, 'message': 'Datenbank komplett geleert!'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/run-simulation', methods=['POST'])
+@csrf.exempt
+def run_simulation():
+    """Run simulation for RUNDE_1_GRUPPEN_TIPP: save test results, calculate scores, update phase"""
+    data = request.json
+    if data.get('password') != ADMIN_PASSWORD:
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # FAKE SIMULATION 
+                # 1. Speichere TEST_RESULTS in tournament_results
+                cur.execute(
+                    'INSERT INTO tournament_results (results, is_final) VALUES (%s, %s)',
+                    (json.dumps(TEST_RESULTS), True)
+                )
+                
+                # 2. Hole alle predictions für RUNDE_1_GRUPPEN_TIPP
+                cur.execute(
+                    'SELECT id, nickname, selections FROM predictions WHERE phase = %s',
+                    (PHASES[2],)  # RUNDE_1_GRUPPEN_TIPP
+                )
+                predictions = cur.fetchall()
+                
+                # 3. Berechne Punkte für jeden User
+                for pred in predictions:
+                    user_selections = json.loads(pred['selections']) if isinstance(pred['selections'], str) else pred['selections']
+                    score = calculate_score(user_selections, TEST_RESULTS, "RUNDE_1_GRUPPEN_TIPP")
+                    
+                    # 4. Update score in predictions
+                    cur.execute(
+                        'UPDATE predictions SET score = %s WHERE id = %s',
+                        (score, pred['id'])
+                    )
+                
+                # 5. Setze Phase auf RUNDE_1_SIM
+                cur.execute(
+                    'UPDATE system_state SET current_phase = %s WHERE id = 1',
+                    ("RUNDE_1_SIM",)
+                )
+            
+            conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Simulation komplett! {len(predictions)} User bewertet.',
+            'details': f'TEST_RESULTS: {TEST_RESULTS}'
+        })
+    except Exception as e:
+        return jsonify({'error': f'Simulationsfehler: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)))

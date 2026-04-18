@@ -18,11 +18,19 @@ load_dotenv()
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.getenv('SECRET_KEY', os.urandom(24))
+
+# --- SESSION CONFIGURATION ---
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_ENV') == 'production'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 CORS(app, supports_credentials=True)
 csrf = CSRFProtect(app)
 limiter = Limiter(app=app, key_func=get_remote_address)
 Talisman(app,
-         force_https=True,
+         force_https=os.getenv('FLASK_ENV') == 'production',
          content_security_policy={
         'default-src': "'self'",
         'script-src': [
@@ -162,7 +170,6 @@ def index():
     # Set session to track authenticated users
     session['authenticated'] = True
     session.permanent = True
-    app.permanent_session_lifetime = 3600  # 1 hour
     # Flask lädt jetzt automatisch die Datei aus dem /templates Ordner!
     return render_template('index.html')
 
@@ -221,6 +228,7 @@ def submit_nickname():
     # Speichere Nickname in Session für später
     session['nickname'] = nickname
     session.permanent = True
+    session.modified = True
     return jsonify({'success': True, 'message': 'Nickname gespeichert!'})
 
 @app.route('/api/submit-selections', methods=['POST'])

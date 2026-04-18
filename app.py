@@ -124,10 +124,10 @@ def init_db():
             # Tabelle für Tipps und Ergebnisse
             cur.execute('''CREATE TABLE IF NOT EXISTS predictions (
                 id SERIAL PRIMARY KEY, nickname VARCHAR(50) NOT NULL,
-                round INTEGER NOT NULL,
+                phase VARCHAR(50) NOT NULL,
                 selections JSONB NOT NULL, score INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(nickname, round))''')
+                UNIQUE(nickname, phase))''')
             
             cur.execute('''CREATE TABLE IF NOT EXISTS tournament_results (
                 id SERIAL PRIMARY KEY, results JSONB NOT NULL,
@@ -153,14 +153,6 @@ def set_phase(new_phase):
         with conn.cursor() as cur:
             cur.execute('UPDATE system_state SET current_phase = %s WHERE id = 1', (new_phase,))
         conn.commit()
-
-# Helper function to extract round number from phase name
-def extract_round_from_phase(phase):
-    """Extract round number from phase name (e.g., 'RUNDE_1_GRUPPEN_TIPP' -> 1)"""
-    import re
-    match = re.search(r'RUNDE_(\d+)', phase)
-    return int(match.group(1)) if match else None
-
 
 # Initialize database on module import (works with Gunicorn and local development)
 init_db()
@@ -245,15 +237,17 @@ def submit_nickname():
     if not valid:
         return jsonify({'error': error}), 400
     
-    # Speichere Nickname auch in der Participants-Tabelle (für Live-Übersicht)
+    # Speichere Nickname in der Participants-Tabelle (für Live-Übersicht)
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('INSERT INTO participants (nickname) VALUES (%s) ON CONFLICT DO NOTHING', (nickname,))
+                cur.execute('INSERT INTO participants (nickname) VALUES (%s)', (nickname,))
             conn.commit()
+    except psycopg.IntegrityError:
+        return jsonify({'error': 'Dieser Nickname ist bereits vergeben! Bitte wähle einen anderen.'}), 409
     except Exception as e:
-        # Fehler bei DB-Insert ignorieren
         print(f"Error saving participant: {e}")
+        return jsonify({'error': f'Fehler beim Speichern des Nicknames: {str(e)}'}), 500
     
     return jsonify({'success': True, 'message': 'Nickname gespeichert!'})
 
@@ -288,14 +282,13 @@ def submit_selections():
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                round_num = extract_round_from_phase(get_phase())
-                cur.execute('INSERT INTO predictions (nickname, round, selections) VALUES (%s, %s, %s)', (nickname, round_num, json.dumps(selections)))
+                cur.execute('INSERT INTO predictions (nickname, phase, selections) VALUES (%s, %s, %s)', (nickname, get_phase(), json.dumps(selections)))
             conn.commit()
         return jsonify({'success': True, 'message': 'Tipps gespeichert!'})
     except psycopg.IntegrityError:
         return jsonify({'error': 'Nickname bereits für diese Runde abgegeben!'}), 409
     except Exception as e:
-        return jsonify({'error': 'Fehler beim Speichern'}), 500
+        return jsonify({'error': f'Fehler beim Speichern: {str(e)}'}), 500
 
 @app.route('/api/admin/reset-db', methods=['POST'])
 @csrf.exempt # WICHTIG wegen deiner Security-Einstellungen

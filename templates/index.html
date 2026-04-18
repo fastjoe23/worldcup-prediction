@@ -10,7 +10,80 @@
         .hp-field { display: none; }
         .hidden { display: none; }
         input, select, button { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
-        button { background: #007bff; color: white; border: none; font-weight: bold; border-radius: 4px; }
+        button { background: #007bff; color: white; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        
+        /* Success Modal Styles */
+        .success-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .success-modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 90%;
+            animation: slideUp 0.5s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 0.6s ease-in-out;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .success-modal h2 {
+            color: #28a745;
+            margin: 20px 0;
+            font-size: 28px;
+        }
+        
+        .success-modal p {
+            color: #666;
+            font-size: 16px;
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+        
+        .success-modal .waiting-text {
+            color: #007bff;
+            font-weight: bold;
+            margin-top: 20px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -53,8 +126,30 @@
         setInterval(checkPhase, 3000);
         checkPhase(); // Sofort beim Start ausführen
 
+        // Helper function to show success modal
+        function showSuccessModal(title, message, waitingMessage) {
+            const modal = document.createElement('div');
+            modal.className = 'success-modal';
+            modal.innerHTML = `
+                <div class="success-modal-content">
+                    <div class="success-icon">✅</div>
+                    <h2>${title}</h2>
+                    <p>${message}</p>
+                    ${waitingMessage ? `<p class="waiting-text">${waitingMessage}</p>` : ''}
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Helper function to clear success modal
+        function clearSuccessModal() {
+            const modals = document.querySelectorAll('.success-modal');
+            modals.forEach(m => m.remove());
+        }
+
         function renderUI(phase) {
             const container = document.getElementById('app-container');
+            clearSuccessModal(); // Clear any previous modals when phase changes
             
             if (phase === "START") {
                 container.innerHTML = "<h1>🏆 Willkommen!</h1><p>Gleich geht die erste Tipprunde los. Schau auf den Beamer!</p>";
@@ -117,7 +212,8 @@
             const hp = document.getElementById('bot_email').value;
 
             if (!nick) {
-                document.getElementById('msg').innerText = "Bitte Nickname eingeben!";
+                showSuccessModal('⚠️ Fehler', 'Bitte gib einen Nickname ein!');
+                setTimeout(clearSuccessModal, 3000);
                 return;
             }
 
@@ -128,7 +224,17 @@
                 credentials: 'include'
             });
             const data = await res.json();
-            document.getElementById('msg').innerText = data.message || data.error;
+            
+            if (data.success) {
+                showSuccessModal(
+                    'Nickname gespeichert! 🎉',
+                    `Dein Nickname: <strong>${nick}</strong>`,
+                    'Warte auf die nächste Phase...'
+                );
+            } else {
+                showSuccessModal('⚠️ Fehler', data.error);
+                setTimeout(clearSuccessModal, 3000);
+            }
         }
 
         async function submitSelections() {
@@ -150,7 +256,8 @@
             }
             
             if (!allSelected) {
-                document.getElementById('msg').innerText = "Bitte alle 12 Gruppen wählen!";
+                showSuccessModal('⚠️ Fehler', 'Bitte wähle einen Sieger für alle 12 Gruppen!');
+                setTimeout(clearSuccessModal, 3000);
                 return;
             }
 
@@ -161,7 +268,17 @@
                 credentials: 'include'
             });
             const data = await res.json();
-            document.getElementById('msg').innerText = data.message || data.error;
+            
+            if (data.success) {
+                showSuccessModal(
+                    'Tipps abgegeben! 🏆',
+                    'Deine Tipps wurden erfolgreich gespeichert.',
+                    'Warte auf die nächste Phase...'
+                );
+            } else {
+                showSuccessModal('⚠️ Fehler', data.error);
+                setTimeout(clearSuccessModal, 3000);
+            }
         }
     </script>
 </body>

@@ -204,7 +204,8 @@ def init_db():
                 UNIQUE(nickname, phase))''')
             
             cur.execute('''CREATE TABLE IF NOT EXISTS tournament_results (
-                id SERIAL PRIMARY KEY, results JSONB NOT NULL,
+                id SERIAL PRIMARY KEY, phase VARCHAR(50) NOT NULL,
+                results JSONB NOT NULL,
                 is_final BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
             
             # Tabelle für den Event-Status (nur 1 Zeile)
@@ -276,11 +277,23 @@ def get_participants():
 
 @app.route('/api/latest-results', methods=['GET'])
 def latest_results():
-    """Get the most recent tournament results (e.g., semi-finalists or teams in finals)"""
+    """Get the tournament results from the previous round"""
     try:
+        current_phase = get_phase()
+        prev_phase = None
+        
+        # Determine which phase's results we need based on current phase
+        if current_phase == "RUNDE_2_TIPP":
+            prev_phase = "RUNDE_1_GRUPPEN_TIPP"
+        elif current_phase == "FINALE_TIPP":
+            prev_phase = "RUNDE_2_TIPP"
+        
+        if not prev_phase:
+            return jsonify({'error': 'Keine vorherige Phase gefunden'}), 400
+        
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('SELECT results FROM tournament_results ORDER BY id DESC LIMIT 1')
+                cur.execute('SELECT results FROM tournament_results WHERE phase = %s ORDER BY id DESC LIMIT 1', (prev_phase,))
                 result = cur.fetchone()
         
         if not result:
@@ -425,8 +438,8 @@ def run_simulation():
                 if phase == "RUNDE_1_GRUPPEN_TIPP":
                     # Save static test results (12 group winners)
                     cur.execute(
-                        'INSERT INTO tournament_results (results, is_final) VALUES (%s, %s)',
-                        (json.dumps(TEST_RESULTS), True)
+                        'INSERT INTO tournament_results (phase, results, is_final) VALUES (%s, %s, %s)',
+                        ("RUNDE_1_GRUPPEN_TIPP", json.dumps(TEST_RESULTS), True)
                     )
                     
                     # Get all Round 1 predictions
@@ -470,8 +483,8 @@ def run_simulation():
                     
                     # Save semi-finalists as list
                     cur.execute(
-                        'INSERT INTO tournament_results (results, is_final) VALUES (%s, %s)',
-                        (json.dumps(semi_finalists), True)
+                        'INSERT INTO tournament_results (phase, results, is_final) VALUES (%s, %s, %s)',
+                        ("RUNDE_2_TIPP", json.dumps(semi_finalists), True)
                     )
                     
                     # Get all Round 2 predictions
@@ -513,8 +526,8 @@ def run_simulation():
                     
                     # Save champion
                     cur.execute(
-                        'INSERT INTO tournament_results (results, is_final) VALUES (%s, %s)',
-                        (json.dumps(champion), True)
+                        'INSERT INTO tournament_results (phase, results, is_final) VALUES (%s, %s, %s)',
+                        ("FINALE_TIPP", json.dumps(champion), True)
                     )
                     
                     # Get all Finale predictions

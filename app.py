@@ -509,7 +509,7 @@ def run_simulation():
                         semi_finalists = [semi_finalists]
                     
                     # Fake champion: first team from semi-finalists
-                    champion = "Mexiko" #semi_finalists[0]
+                    champion = semi_finalists[0]
                     
                     # Save champion
                     cur.execute(
@@ -523,7 +523,11 @@ def run_simulation():
                     
                     # Calculate and update scores
                     for pred in predictions:
-                        user_selections = json.loads(pred['selections']) if isinstance(pred['selections'], str) else pred['selections']
+                        user_selections = pred['selections']
+                        if not isinstance(user_selections, str):
+                            print(f"Ungültige Selections für Finale Tipp: {user_selections} bei User {pred['nickname']}. Überspringen.")
+                            continue
+                        
                         score = calculate_score(user_selections, champion, "FINALE_TIPP")
                         
                         cur.execute('UPDATE predictions SET score = %s WHERE id = %s', (score, pred['id']))

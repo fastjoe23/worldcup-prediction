@@ -214,6 +214,10 @@
                 // Finals: Select 1 champion from 4 semi-finalists
                 loadFinalsUI(container);
             }
+            else if (phase === "FINALE_SIM") {
+                // Game Over: Show final summary
+                loadFinaleSummary(container);
+            }
             else if (phase.includes("TIPP")) {
                 // Fallback für andere Tipp-Phasen
                 container.innerHTML = "<h1>✍️ Tipprunde ist offen!</h1><p>Bitte einen Moment warten...</p>";
@@ -321,6 +325,108 @@
                 document.getElementById('selectionsButton').addEventListener('click', submitSelections);
             } catch (e) {
                 container.innerHTML = "<h1>⚠️ Fehler</h1><p>Daten konnten nicht geladen werden.</p>";
+                console.error(e);
+            }
+        }
+
+        async function loadFinaleSummary(container) {
+            const savedNick = localStorage.getItem('userNickname');
+            
+            if (!savedNick) {
+                container.innerHTML = "<h1>⚠️ Fehler</h1><p>Kein Nickname gefunden!</p>";
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/user-summary?nickname=${encodeURIComponent(savedNick)}`);
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    container.innerHTML = "<h1>⚠️ Fehler</h1><p>" + data.error + "</p>";
+                    return;
+                }
+                
+                let html = `
+                    <div style="text-align: center; padding: 20px;">
+                        <h1>🏆 Turnier vorbei!</h1>
+                        <p style="font-size: 1.2em; color: #666;">Danke dass du mitgemacht hast, <strong>${data.nickname}</strong>!</p>
+                        
+                        <div style="background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); padding: 30px; border-radius: 12px; margin: 30px 0; box-shadow: 0 8px 20px rgba(0,0,0,0.15);">
+                            <p style="color: #333; font-size: 0.9em; margin: 0; text-transform: uppercase; letter-spacing: 2px;">Dein Endergebnis</p>
+                            <h2 style="color: #333; font-size: 4em; margin: 10px 0; font-weight: bold;">${data.total_score} Punkte</h2>
+                        </div>
+                        
+                        <h3 style="margin-top: 40px; margin-bottom: 20px;">📋 Deine Tipps pro Runde</h3>
+                `;
+                
+                // Round-by-round results
+                data.rounds.forEach(round => {
+                    const roundName = round.phase === "RUNDE_1_GRUPPEN_TIPP" ? "Runde 1: Gruppensieger" :
+                                     round.phase === "RUNDE_2_TIPP" ? "Runde 2: Halbfinale" :
+                                     "Finale: Weltmeister";
+                    
+                    html += `
+                        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #007bff;">
+                            <h4 style="margin: 0 0 15px 0; color: #333;">${roundName} (${round.user_score} Punkte)</h4>
+                    `;
+                    
+                    if (round.phase === "RUNDE_1_GRUPPEN_TIPP") {
+                        // Show table of comparisons for Round 1
+                        html += `
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.95em;">
+                                <tr style="background: #e9ecef; font-weight: bold;">
+                                    <td style="padding: 8px; border: 1px solid #ddd;">Gruppe</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">Dein Tipp</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">Ergebnis</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">✓</td>
+                                </tr>
+                        `;
+                        round.comparisons.forEach(comp => {
+                            const checkmark = comp.correct ? '✅' : '❌';
+                            html += `
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${comp.category}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${comp.user_pick}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${comp.actual}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${checkmark}</td>
+                                </tr>
+                            `;
+                        });
+                        html += `</table>`;
+                    } 
+                    else if (round.phase === "RUNDE_2_TIPP") {
+                        // Show semi-finalist picks
+                        html += `
+                            <p><strong>Deine Tipps:</strong> ${round.comparisons.user_picks.join(', ')}</p>
+                            <p><strong>Halbfinalisten:</strong> ${round.comparisons.actual_semis.join(', ')}</p>
+                            <p style="color: #28a745; font-weight: bold;">✅ ${round.comparisons.correct_count} Teams richtig!</p>
+                        `;
+                    } 
+                    else if (round.phase === "FINALE_TIPP") {
+                        // Show champion pick
+                        const checkmark = round.comparisons.correct ? '✅ RICHTIG!' : '❌ Leider nicht';
+                        const color = round.comparisons.correct ? '#28a745' : '#dc3545';
+                        html += `
+                            <p><strong>Dein Favorit:</strong> ${round.comparisons.user_pick}</p>
+                            <p><strong>Weltmeister:</strong> ${round.comparisons.actual_champion}</p>
+                            <p style="color: ${color}; font-weight: bold; font-size: 1.1em;">${checkmark}</p>
+                        `;
+                    }
+                    
+                    html += `</div>`;
+                });
+                
+                html += `
+                        <div style="margin-top: 40px; padding: 20px; background: #e7f3ff; border-radius: 8px;">
+                            <p style="font-size: 1.1em; color: #0066cc; font-weight: bold;">🎉 Danke dass du dabei warst!</p>
+                            <p style="color: #666; margin: 10px 0;">Wir sehen uns beim nächsten Tippspiel!</p>
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = "<h1>⚠️ Fehler</h1><p>Zusammenfassung konnte nicht geladen werden.</p>";
                 console.error(e);
             }
         }

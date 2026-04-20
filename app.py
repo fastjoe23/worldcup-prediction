@@ -311,6 +311,95 @@ def latest_results():
     except Exception as e:
         return jsonify({'error': f'Fehler: {str(e)}'}), 500
 
+@app.route('/api/user-summary', methods=['GET'])
+def user_summary():
+    """Get user's final summary with total score and round-by-round results"""
+    nickname = request.args.get('nickname')
+    
+    if not nickname:
+        return jsonify({'error': 'Nickname erforderlich'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # Get total score from participants
+                cur.execute('SELECT score FROM participants WHERE nickname = %s', (nickname,))
+                participant = cur.fetchone()
+                
+                if not participant:
+                    return jsonify({'error': 'Benutzer nicht gefunden'}), 404
+                
+                total_score = participant['score'] or 0
+                
+                # Get all predictions for this user
+                cur.execute(
+                    'SELECT phase, selections, score FROM predictions WHERE nickname = %s ORDER BY phase',
+                    (nickname,)
+                )
+                predictions = cur.fetchall()
+                
+                # Get all tournament results
+                cur.execute(
+                    'SELECT phase, results FROM tournament_results ORDER BY phase'
+                )
+                results = cur.fetchall()
+                results_by_phase = {r['phase']: r['results'] for r in results}
+                
+                # Build round-by-round comparisons
+                rounds = []
+                
+                for pred in predictions:
+                    phase = pred['phase']
+                    user_selections = json.loads(pred['selections']) if isinstance(pred['selections'], str) else pred['selections']
+                    user_score = pred['score'] or 0
+                    actual_results = results_by_phase.get(phase)
+                    
+                    round_data = {
+                        'phase': phase,
+                        'user_score': user_score,
+                        'comparisons': []
+                    }
+                    
+                    # Round 1: Compare dict of group picks
+                    if phase == "RUNDE_1_GRUPPEN_TIPP":
+                        if isinstance(actual_results, dict):
+                            for group, user_team in user_selections.items():
+                                actual_team = actual_results.get(group, 'N/A')
+                                round_data['comparisons'].append({
+                                    'category': group,
+                                    'user_pick': user_team,
+                                    'actual': actual_team,
+                                    'correct': user_team == actual_team
+                                })
+                    
+                    # Round 2: Compare list of semi-finalist picks
+                    elif phase == "RUNDE_2_TIPP":
+                        if isinstance(actual_results, list):
+                            round_data['comparisons'] = {
+                                'user_picks': user_selections,
+                                'actual_semis': actual_results,
+                                'correct_count': sum(1 for t in user_selections if t in actual_results)
+                            }
+                    
+                    # Finals: Compare champion pick
+                    elif phase == "FINALE_TIPP":
+                        round_data['comparisons'] = {
+                            'user_pick': user_selections,
+                            'actual_champion': actual_results,
+                            'correct': user_selections == actual_results
+                        }
+                    
+                    rounds.append(round_data)
+                
+                return jsonify({
+                    'nickname': nickname,
+                    'total_score': total_score,
+                    'rounds': rounds
+                })
+    
+    except Exception as e:
+        return jsonify({'error': f'Fehler: {str(e)}'}), 500
+
 @app.route('/api/admin/set-phase', methods=['POST'])
 @limiter.limit("5 per minute")  # Prevent brute force attempts
 @csrf.exempt # Exempt CSRF for API but enforce other validations

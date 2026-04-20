@@ -509,7 +509,7 @@ def run_simulation():
                         semi_finalists = [semi_finalists]
                     
                     # Fake champion: first team from semi-finalists
-                    champion = semi_finalists[0]
+                    champion = "Mexiko" #semi_finalists[0]
                     
                     # Save champion
                     cur.execute(

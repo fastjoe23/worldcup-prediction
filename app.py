@@ -350,7 +350,7 @@ def user_summary():
                 
                 for pred in predictions:
                     phase = pred['phase']
-                    user_selections = json.loads(pred['selections']) if isinstance(pred['selections'], str) else pred['selections']
+                    user_selections = pred['selections']
                     user_score = pred['score'] or 0
                     actual_results = results_by_phase.get(phase)
                     
@@ -362,7 +362,7 @@ def user_summary():
                     
                     # Round 1: Compare dict of group picks
                     if phase == "RUNDE_1_GRUPPEN_TIPP":
-                        if isinstance(actual_results, dict):
+                        if isinstance(actual_results, dict) and isinstance(user_selections, dict):
                             for group, user_team in user_selections.items():
                                 actual_team = actual_results.get(group, 'N/A')
                                 round_data['comparisons'].append({
@@ -374,7 +374,7 @@ def user_summary():
                     
                     # Round 2: Compare list of semi-finalist picks
                     elif phase == "RUNDE_2_TIPP":
-                        if isinstance(actual_results, list):
+                        if isinstance(actual_results, list) and isinstance(user_selections, list):
                             round_data['comparisons'] = {
                                 'user_picks': user_selections,
                                 'actual_semis': actual_results,
@@ -383,11 +383,12 @@ def user_summary():
                     
                     # Finals: Compare champion pick
                     elif phase == "FINALE_TIPP":
+                        # In Runde 3 ist user_selections nur ein String (z.B. "Deutschland")
                         round_data['comparisons'] = {
                             'user_pick': user_selections,
                             'actual_champion': actual_results,
                             'correct': user_selections == actual_results
-                        }
+                        }   
                     
                     rounds.append(round_data)
                 

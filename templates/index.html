@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>WM Tippspiel</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
@@ -140,6 +140,22 @@
                 container.innerHTML = "<h1>🏆 Willkommen!</h1><p>Gleich geht die erste Tipprunde los. Schau auf den Beamer!</p>";
             } 
             else if (phase === "RUNDE_1_NICKNAME") {
+                // Check if already submitted
+                const savedNick = localStorage.getItem('userNickname');
+                if (savedNick) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 20px;">
+                            <h1>👋 Hallo <strong>${savedNick}</strong>!</h1>
+                            <p style="font-size: 1.1em; color: #666;">Schön, dass du dabei bist.</p>
+                            <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-top: 30px; border-left: 4px solid #007bff;">
+                                <p style="color: #1976d2; font-weight: bold; margin: 0;">⏳ Gleich geht es los!</p>
+                                <p style="color: #666; font-size: 0.9em; margin: 10px 0 0 0;">Warte auf den Start der ersten Tipprunde am Beamer...</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
                 // Phase 1: Nickname wählen
                 container.innerHTML = `
                     <h1>✍️ Gib deinen Nickname ein</h1>
@@ -455,6 +471,7 @@
         async function submitNickname() {
             const nick = document.getElementById('nickname').value;
             const hp = document.getElementById('bot_email').value;
+            const btn = document.getElementById('nicknameButton');
 
             if (!nick) {
                 showErrorModal('⚠️ Fehler', 'Bitte gib einen Nickname ein!');
@@ -462,30 +479,47 @@
                 return;
             }
 
-            const res = await fetch('/api/submit-nickname', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({nickname: nick, email_hp: hp}),
-                credentials: 'include'
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                // Store nickname in localStorage for phase 2
-                localStorage.setItem('userNickname', nick);
-                showSuccessModal(
-                    'Nickname gespeichert! 🎉',
-                    `Dein Nickname: <strong>${nick}</strong>`
-                );
+            // Button sofort deaktivieren und Feedback geben
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Speichere...';
+            btn.style.cursor = 'wait';
+
+            try {
+                const res = await fetch('/api/submit-nickname', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({nickname: nick, email_hp: hp}),
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    // Store nickname in localStorage for phase 2
+                    localStorage.setItem('userNickname', nick);
+                    // Kompletten View austauschen statt Modal
+                    renderUI(currentPhase);
+                } else {
+                    showErrorModal('⚠️ Fehler', data.error);
+                    setTimeout(clearSuccessModal, 3000);
+                    // Button wiederherstellen
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    btn.style.cursor = 'pointer';
+                }
+            } catch (error) {
+                showErrorModal('⚠️ Fehler', 'Netzwerkfehler beim Speichern.');
                 setTimeout(clearSuccessModal, 3000);
-            } else {
-                showErrorModal('⚠️ Fehler', data.error);
-                setTimeout(clearSuccessModal, 3000);
+                // Button wiederherstellen
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                btn.style.cursor = 'pointer';
             }
         }
 
         async function submitSelections() {
             const hp = document.getElementById('bot_email').value;
+            const btn = document.getElementById('selectionsButton');
             
             // Try to get nickname from localStorage first, then from late_nickname input
             let nickname = localStorage.getItem('userNickname');
@@ -500,11 +534,6 @@
                 showErrorModal('⚠️ Fehler', 'Bitte gib einen Nickname ein!');
                 setTimeout(clearSuccessModal, 3000);
                 return;
-            }
-            
-            // If using late_nickname, save it to localStorage before fetching
-            if (!localStorage.getItem('userNickname')) {
-                localStorage.setItem('userNickname', nickname);
             }
             
             let selections = null;
@@ -563,27 +592,46 @@
                 return;
             }
 
-            const res = await fetch('/api/submit-selections', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({nickname: nickname, selections: selections, email_hp: hp}),
-                credentials: 'include'
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                // Save picks to localStorage for this phase
-                localStorage.setItem('picks_' + currentPhase, JSON.stringify(selections));
-                // Show success modal
-                showSuccessModal('Tipps abgegeben! 🏆', 'Deine Tipps wurden erfolgreich gespeichert.');
-                setTimeout(() => {
-                    clearSuccessModal();
-                    // Re-render UI to show submitted view
+            // Button sofort deaktivieren und Feedback geben
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Speichere...';
+            btn.style.cursor = 'wait';
+
+            try {
+                // If using late_nickname, save it to localStorage before fetching
+                if (!localStorage.getItem('userNickname')) {
+                    localStorage.setItem('userNickname', nickname);
+                }
+
+                const res = await fetch('/api/submit-selections', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({nickname: nickname, selections: selections, email_hp: hp}),
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    // Save picks to localStorage for this phase
+                    localStorage.setItem('picks_' + currentPhase, JSON.stringify(selections));
+                    // Zeige sofort die UI mit den abgegebenen Tipps an (kein Modal)
                     renderUI(currentPhase);
-                }, 2000);
-            } else {
-                showErrorModal('⚠️ Fehler', data.error);
+                } else {
+                    showErrorModal('⚠️ Fehler', data.error);
+                    setTimeout(clearSuccessModal, 3000);
+                    // Button wiederherstellen
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    btn.style.cursor = 'pointer';
+                }
+            } catch (error) {
+                showErrorModal('⚠️ Fehler', 'Netzwerkfehler beim Speichern.');
                 setTimeout(clearSuccessModal, 3000);
+                // Button wiederherstellen
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                btn.style.cursor = 'pointer';
             }
         }
     </script>

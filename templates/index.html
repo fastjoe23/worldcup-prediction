@@ -468,22 +468,26 @@
             }
         }
 
-        async function submitNickname() {
+        async function submitNickname(event) {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
             const nick = document.getElementById('nickname').value;
             const hp = document.getElementById('bot_email').value;
-            const btn = document.getElementById('nicknameButton');
+
+            //btn blockieren
+            btn.disabled = true;
+            btn.style.cursor = 'wait';
+            btn.innerHTML = 'Speichere...';
 
             if (!nick) {
                 showErrorModal('⚠️ Fehler', 'Bitte gib einen Nickname ein!');
                 setTimeout(clearSuccessModal, 3000);
+                btn.disabled = false;
+                btn.style.cursor = 'pointer';
+                btn.innerHTML = originalText; 
                 return;
             }
 
-            // Button sofort deaktivieren und Feedback geben
-            const originalText = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '⏳ Speichere...';
-            btn.style.cursor = 'wait';
 
             try {
                 const res = await fetch('/api/submit-nickname', {
@@ -517,10 +521,17 @@
             }
         }
 
-        async function submitSelections() {
+        async function submitSelections(event) {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
             const hp = document.getElementById('bot_email').value;
-            const btn = document.getElementById('selectionsButton');
+
             
+            //btn blockieren
+            btn.disabled = true;
+            btn.style.cursor = 'wait';
+            btn.innerHTML = 'Speichere Tipps...';
+
             // Try to get nickname from localStorage first, then from late_nickname input
             let nickname = localStorage.getItem('userNickname');
             if (!nickname) {
@@ -533,6 +544,9 @@
             if (!nickname || nickname.trim() === '') {
                 showErrorModal('⚠️ Fehler', 'Bitte gib einen Nickname ein!');
                 setTimeout(clearSuccessModal, 3000);
+                btn.disabled = false;
+                btn.style.cursor = 'pointer';
+                btn.innerHTML = originalText; 
                 return;
             }
             
@@ -557,6 +571,9 @@
                 if (!allSelected) {
                     showErrorModal('⚠️ Fehler', 'Bitte wähle einen Sieger für alle 12 Gruppen!');
                     setTimeout(clearSuccessModal, 3000);
+                    btn.disabled = false;
+                    btn.style.cursor = 'pointer';
+                    btn.innerHTML = originalText; 
                     return;
                 }
             }
@@ -569,6 +586,9 @@
                 if (selections.length !== 4) {
                     showErrorModal('⚠️ Fehler', 'Bitte wähle exakt 4 Teams aus!');
                     setTimeout(clearSuccessModal, 3000);
+                    btn.disabled = false;
+                    btn.style.cursor = 'pointer';
+                    btn.innerHTML = originalText; 
                     return;
                 }
             }
@@ -580,6 +600,9 @@
                 if (!selectedRadio) {
                     showErrorModal('⚠️ Fehler', 'Bitte wähle einen Champion!');
                     setTimeout(clearSuccessModal, 3000);
+                    btn.disabled = false;
+                    btn.style.cursor = 'pointer';
+                    btn.innerHTML = originalText; 
                     return;
                 }
                 
@@ -589,14 +612,13 @@
             if (selections === null) {
                 showErrorModal('⚠️ Fehler', 'Unbekannte Phase!');
                 setTimeout(clearSuccessModal, 3000);
+                btn.disabled = false;
+                btn.style.cursor = 'pointer';
+                btn.innerHTML = originalText; 
                 return;
             }
 
-            // Button sofort deaktivieren und Feedback geben
-            const originalText = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '⏳ Speichere...';
-            btn.style.cursor = 'wait';
+
 
             try {
                 // If using late_nickname, save it to localStorage before fetching

@@ -1,0 +1,356 @@
+* { box-sizing: border-box; }
+
+body { 
+    font-family: sans-serif; 
+    max-width: 600px; 
+    margin: 10px auto; 
+    padding: 0 10px; 
+    background: #f4f4f9;
+    font-size: 16px;
+}
+
+.card { 
+    background: white; 
+    padding: 15px; 
+    border-radius: 8px; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    overflow-x: hidden;
+}
+
+h1 { font-size: 1.5em; margin: 10px 0; }
+h2 { font-size: 1.3em; margin: 10px 0; }
+h3 { font-size: 1.1em; margin: 15px 0 10px 0; }
+h4 { font-size: 1em; margin: 10px 0; }
+
+.hp-field { display: none; }
+.hidden { display: none; }
+
+input, select, button { 
+    width: 100%; 
+    padding: 12px; 
+    margin: 8px 0; 
+    box-sizing: border-box;
+    font-size: 16px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 4px rgba(0, 123, 255, 0.3);
+}
+
+button { 
+    background: #007bff; 
+    color: white; 
+    border: none; 
+    font-weight: bold; 
+    border-radius: 4px; 
+    cursor: pointer;
+    padding: 12px;
+    transition: background 0.3s;
+}
+
+button:hover { background: #0056b3; }
+button:active { transform: scale(0.98); }
+
+/* Grid Layout for Round 2 (Team Selection) */
+.teams-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.teams-grid label {
+    padding: 12px;
+    background: #f0f0f0;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+    font-size: 0.95em;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.teams-grid label:hover {
+    background: #e0e0e0;
+}
+
+.teams-grid input {
+    margin-right: 8px;
+    width: auto;
+    cursor: pointer;
+}
+
+/* Stack on very small screens */
+@media (max-width: 450px) {
+    .teams-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Group Selection Styles */
+.group-selector {
+    margin: 12px 0;
+    padding: 12px;
+    background: #f9f9f9;
+    border-radius: 4px;
+    border-left: 3px solid #007bff;
+}
+
+.group-selector label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    font-size: 0.95em;
+}
+
+/* Finals Radio Buttons */
+.finals-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.finals-options label {
+    padding: 12px;
+    background: #f0f0f0;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.finals-options label:hover {
+    background: #e0e0e0;
+}
+
+.finals-options input {
+    margin-right: 8px;
+    width: auto;
+    cursor: pointer;
+}
+
+/* Success Modal Styles */
+.success-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease-in;
+    padding: 10px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.success-modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    max-width: calc(100% - 20px);
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.success-icon {
+    font-size: 60px;
+    margin-bottom: 15px;
+    animation: bounce 0.6s ease-in-out;
+    display: block;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.success-modal h2 {
+    color: #28a745;
+    margin: 15px 0;
+    font-size: 1.5em;
+    word-wrap: break-word;
+}
+
+.success-modal p {
+    color: #666;
+    font-size: 0.95em;
+    margin: 8px 0;
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+
+.success-modal .waiting-text {
+    color: #007bff;
+    font-weight: bold;
+    margin-top: 15px;
+    font-size: 0.9em;
+}
+
+/* Summary Table - Responsive */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+    margin: 10px 0;
+    overflow-x: auto;
+    display: block;
+}
+
+table tr {
+    display: block;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+table td {
+    display: block;
+    padding: 10px;
+    border: none;
+    border-bottom: 1px solid #eee;
+    position: relative;
+    padding-left: 120px;
+    min-height: 40px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+table tr:first-child {
+    display: none;
+}
+
+table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 10px;
+    font-weight: bold;
+    color: #333;
+    width: 110px;
+    text-align: left;
+}
+
+/* Summary Sections */
+.summary-section {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 12px 0;
+    border-left: 4px solid #007bff;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.score-box {
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    padding: 20px;
+    border-radius: 12px;
+    margin: 20px 0;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    text-align: center;
+}
+
+.score-box h2 {
+    margin: 0;
+    font-size: 3em;
+    color: #333;
+}
+
+.score-box p {
+    margin: 10px 0 0 0;
+    color: #555;
+    font-size: 0.9em;
+}
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+    body {
+        margin: 5px auto;
+        padding: 0 5px;
+    }
+    
+    .card {
+        padding: 12px;
+    }
+    
+    h1 { font-size: 1.3em; }
+    h2 { font-size: 1.1em; }
+    
+    input, select, button {
+        padding: 10px;
+        margin: 6px 0;
+        font-size: 16px;
+    }
+    
+    .score-box h2 {
+        font-size: 2.5em;
+    }
+    
+    .summary-section {
+        padding: 12px;
+        margin: 10px 0;
+    }
+    
+    table td {
+        padding-left: 90px;
+    }
+    
+    table td::before {
+        width: 85px;
+        font-size: 0.9em;
+    }
+}
+
+@media (max-width: 400px) {
+    h1 { font-size: 1.2em; }
+    
+    .score-box {
+        padding: 15px;
+    }
+    
+    .score-box h2 {
+        font-size: 2em;
+    }
+    
+    table td {
+        padding: 8px;
+        padding-left: 100px;
+        font-size: 0.85em;
+    }
+    
+    table td::before {
+        width: 95px;
+        left: 5px;
+        font-size: 0.8em;
+    }
+}

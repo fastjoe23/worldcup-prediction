@@ -4,87 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WM Tippspiel</title>
-    <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 0 10px; background: #f4f4f9; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .hp-field { display: none; }
-        .hidden { display: none; }
-        input, select, button { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
-        button { background: #007bff; color: white; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        
-        /* Success Modal Styles */
-        .success-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            animation: fadeIn 0.3s ease-in;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        .success-modal-content {
-            background: white;
-            padding: 40px;
-            border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            max-width: 90%;
-            animation: slideUp 0.5s ease-out;
-        }
-        
-        @keyframes slideUp {
-            from { 
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to { 
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .success-icon {
-            font-size: 80px;
-            margin-bottom: 20px;
-            animation: bounce 0.6s ease-in-out;
-        }
-        
-        @keyframes bounce {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        
-        .success-modal h2 {
-            color: #28a745;
-            margin: 20px 0;
-            font-size: 28px;
-        }
-        
-        .success-modal p {
-            color: #666;
-            font-size: 16px;
-            margin: 10px 0;
-            line-height: 1.5;
-        }
-        
-        .success-modal .waiting-text {
-            color: #007bff;
-            font-weight: bold;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="card" id="app-container">
@@ -184,9 +104,9 @@
                 
                 for (const [groupName, teams] of Object.entries(GROUPS)) {
                     groupsHTML += `
-                        <div style="margin: 15px 0; padding: 10px; background: #f9f9f9; border-radius: 4px;">
-                            <label style="display: block; font-weight: bold; margin-bottom: 8px;">${groupName}</label>
-                            <select id="group_${groupName.replace(/\s/g, '_')}" style="width: 100%; padding: 8px;">
+                        <div class="group-selector">
+                            <label>${groupName}</label>
+                            <select id="group_${groupName.replace(/\s/g, '_')}">
                                 <option value="">-- Wähle einen Sieger --</option>
                     `;
                     teams.forEach(team => {
@@ -252,12 +172,12 @@
                 html += `
                     <p>Wähle die 4 Teams aus, die ins Halbfinale kommen:</p>
                     <div class="hp-field"><input type="text" id="bot_email"></div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                `;
+                    <div class="teams-grid">
+                `
                 
                 teams.forEach(team => {
                     html += `
-                        <label style="padding: 10px; background: #f0f0f0; border-radius: 4px; cursor: pointer;">
+                        <label>
                             <input type="checkbox" class="team-checkbox" value="${team}">
                             ${team}
                         </label>
@@ -303,17 +223,17 @@
                 html += `
                     <p>Wer wird Weltmeister?</p>
                     <div class="hp-field"><input type="text" id="bot_email"></div>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                `;
+                    <div class="finals-options">
+                `
                 
                 teams.forEach(team => {
                     html += `
-                        <label style="padding: 10px; background: #f0f0f0; border-radius: 4px; cursor: pointer;">
+                        <label>
                             <input type="radio" class="champion-radio" name="champion" value="${team}">
                             ${team}
                         </label>
                     `;
-                });
+                })
                 
                 html += `
                     </div>
@@ -351,9 +271,9 @@
                         <h1>🏆 Turnier vorbei!</h1>
                         <p style="font-size: 1.2em; color: #666;">Danke dass du mitgemacht hast, <strong>${data.nickname}</strong>!</p>
                         
-                        <div style="background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); padding: 30px; border-radius: 12px; margin: 30px 0; box-shadow: 0 8px 20px rgba(0,0,0,0.15);">
-                            <p style="color: #333; font-size: 0.9em; margin: 0; text-transform: uppercase; letter-spacing: 2px;">Dein Endergebnis</p>
-                            <h2 style="color: #333; font-size: 4em; margin: 10px 0; font-weight: bold;">${data.total_score} Punkte</h2>
+                        <div class="score-box">
+                            <p>Dein Endergebnis</p>
+                            <h2>${data.total_score} Punkte</h2>
                         </div>
                         
                         <h3 style="margin-top: 40px; margin-bottom: 20px;">📋 Deine Tipps pro Runde</h3>
@@ -366,29 +286,29 @@
                                      "Finale: Weltmeister";
                     
                     html += `
-                        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #007bff;">
-                            <h4 style="margin: 0 0 15px 0; color: #333;">${roundName} (${round.user_score} Punkte)</h4>
+                        <div class="summary-section">
+                            <h4>${roundName} (${round.user_score} Punkte)</h4>
                     `;
                     
                     if (round.phase === "RUNDE_1_GRUPPEN_TIPP") {
                         // Show table of comparisons for Round 1
                         html += `
-                            <table style="width: 100%; border-collapse: collapse; font-size: 0.95em;">
-                                <tr style="background: #e9ecef; font-weight: bold;">
-                                    <td style="padding: 8px; border: 1px solid #ddd;">Gruppe</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">Dein Tipp</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">Ergebnis</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">✓</td>
+                            <table>
+                                <tr>
+                                    <td data-label="Gruppe">Gruppe</td>
+                                    <td data-label="Dein Tipp">Dein Tipp</td>
+                                    <td data-label="Ergebnis">Ergebnis</td>
+                                    <td data-label="✓">✓</td>
                                 </tr>
                         `;
                         round.comparisons.forEach(comp => {
                             const checkmark = comp.correct ? '✅' : '❌';
                             html += `
                                 <tr>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${comp.category}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${comp.user_pick}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${comp.actual}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${checkmark}</td>
+                                    <td data-label="Gruppe">${comp.category}</td>
+                                    <td data-label="Dein Tipp">${comp.user_pick}</td>
+                                    <td data-label="Ergebnis">${comp.actual}</td>
+                                    <td data-label="✓">${checkmark}</td>
                                 </tr>
                             `;
                         });
@@ -417,9 +337,9 @@
                 });
                 
                 html += `
-                        <div style="margin-top: 40px; padding: 20px; background: #e7f3ff; border-radius: 8px;">
+                        <div class="summary-section" style="border-left-color: #28a745; background: #e7f3ff;">
                             <p style="font-size: 1.1em; color: #0066cc; font-weight: bold;">🎉 Danke dass du dabei warst!</p>
-                            <p style="color: #666; margin: 10px 0;">Wir sehen uns beim nächsten Tippspiel!</p>
+                            <p>Wir sehen uns beim nächsten Tippspiel!</p>
                         </div>
                     </div>
                 `;

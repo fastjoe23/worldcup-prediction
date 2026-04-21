@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WM Tippspiel</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <div class="card" id="app-container">
@@ -46,15 +46,29 @@
         setInterval(checkPhase, 3000);
         checkPhase(); // Sofort beim Start ausführen
 
-        // Helper function to show error modal
+        // Helper function to show success modal (Green with checkmark)
+        function showSuccessModal(title, message) {
+            const modal = document.createElement('div');
+            modal.className = 'success-modal';
+            modal.innerHTML = `
+                <div class="success-modal-content">
+                    <div class="success-icon" style="color: #28a745;">✅</div>
+                    <h2 style="color: #28a745;">${title}</h2>
+                    <p style="color: #0d6e2f;">${message}</p>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Helper function to show error modal (Red with X)
         function showErrorModal(title, message) {
             const modal = document.createElement('div');
             modal.className = 'success-modal';
             modal.innerHTML = `
                 <div class="success-modal-content">
-                    <div class="success-icon">❌</div>
-                    <h2>${title}</h2>
-                    <p>${message}</p>
+                    <div class="success-icon" style="color: #dc3545;">❌</div>
+                    <h2 style="color: #dc3545;">${title}</h2>
+                    <p style="color: #721c24;">${message}</p>
                 </div>
             `;
             document.body.appendChild(modal);
@@ -224,6 +238,12 @@
                 
                 const teams = data.teams;
                 
+                // Fallback check for empty teams
+                if (!teams || teams.length === 0) {
+                    container.innerHTML = "<h1>⚠️ Fehler</h1><p>Keine Teams in der Datenbank gefunden. Bitte Simulation der Vorrunde prüfen.</p>";
+                    return;
+                }
+                
                 let html = `
                     <h1>🏅 Halbfinale-Tipps</h1>
                 `;
@@ -239,7 +259,7 @@
                     <p>Wähle die 4 Teams aus, die ins Halbfinale kommen:</p>
                     <div class="hp-field"><input type="text" id="bot_email"></div>
                     <div class="teams-grid">
-                `
+                `;
                 
                 teams.forEach(team => {
                     html += `
@@ -284,6 +304,12 @@
                 
                 const teams = data.teams;
                 
+                // Fallback check for empty teams
+                if (!teams || teams.length === 0) {
+                    container.innerHTML = "<h1>⚠️ Fehler</h1><p>Keine Teams in der Datenbank gefunden. Bitte Simulation von Runde 2 prüfen.</p>";
+                    return;
+                }
+                
                 let html = `
                     <h1>🏆 Weltmeister-Tipp</h1>
                 `;
@@ -299,7 +325,7 @@
                     <p>Wer wird Weltmeister?</p>
                     <div class="hp-field"><input type="text" id="bot_email"></div>
                     <div class="finals-options">
-                `
+                `;
                 
                 teams.forEach(team => {
                     html += `
@@ -447,7 +473,7 @@
             if (data.success) {
                 // Store nickname in localStorage for phase 2
                 localStorage.setItem('userNickname', nick);
-                showErrorModal(
+                showSuccessModal(
                     'Nickname gespeichert! 🎉',
                     `Dein Nickname: <strong>${nick}</strong>`
                 );
@@ -548,8 +574,13 @@
             if (data.success) {
                 // Save picks to localStorage for this phase
                 localStorage.setItem('picks_' + currentPhase, JSON.stringify(selections));
-                // Re-render UI to show submitted view
-                renderUI(currentPhase);
+                // Show success modal
+                showSuccessModal('Tipps abgegeben! 🏆', 'Deine Tipps wurden erfolgreich gespeichert.');
+                setTimeout(() => {
+                    clearSuccessModal();
+                    // Re-render UI to show submitted view
+                    renderUI(currentPhase);
+                }, 2000);
             } else {
                 showErrorModal('⚠️ Fehler', data.error);
                 setTimeout(clearSuccessModal, 3000);

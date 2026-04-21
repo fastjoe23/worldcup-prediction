@@ -46,16 +46,15 @@
         setInterval(checkPhase, 3000);
         checkPhase(); // Sofort beim Start ausführen
 
-        // Helper function to show success modal
-        function showSuccessModal(title, message, waitingMessage) {
+        // Helper function to show error modal
+        function showErrorModal(title, message) {
             const modal = document.createElement('div');
             modal.className = 'success-modal';
             modal.innerHTML = `
                 <div class="success-modal-content">
-                    <div class="success-icon">✅</div>
+                    <div class="success-icon">❌</div>
                     <h2>${title}</h2>
                     <p>${message}</p>
-                    ${waitingMessage ? `<p class="waiting-text">${waitingMessage}</p>` : ''}
                 </div>
             `;
             document.body.appendChild(modal);
@@ -65,6 +64,58 @@
         function clearSuccessModal() {
             const modals = document.querySelectorAll('.success-modal');
             modals.forEach(m => m.remove());
+        }
+
+        // Render a "Submitted" view showing user's picks
+        function renderSubmittedView(container, phase, picks) {
+            let html = `
+                <div style="text-align: center; padding: 20px;">
+                    <h1>✅ Tipps erfolgreich abgegeben!</h1>
+                    <p style="color: #666; font-size: 1.1em; margin: 20px 0;">Deine Tipps wurden gespeichert.</p>
+            `;
+
+            if (phase === "RUNDE_1_GRUPPEN_TIPP") {
+                // Show group winners
+                html += `<h3 style="margin-top: 30px; margin-bottom: 15px;">📋 Deine Gruppensieger</h3>`;
+                html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">`;
+                for (const [group, team] of Object.entries(picks)) {
+                    html += `
+                        <div style="background: #f0f0f0; padding: 12px; border-radius: 6px; text-align: left;">
+                            <strong>${group}:</strong> ${team}
+                        </div>
+                    `;
+                }
+                html += `</div>`;
+            } 
+            else if (phase === "RUNDE_2_TIPP") {
+                // Show semi-finalist picks
+                html += `<h3 style="margin-top: 30px; margin-bottom: 15px;">🏅 Deine Halbfinale-Tipps</h3>`;
+                html += `<div style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin: 15px 0;">`;
+                picks.forEach((team, idx) => {
+                    html += `<p style="margin: 10px 0; font-size: 1.1em;"><strong>${idx + 1}.</strong> ${team}</p>`;
+                });
+                html += `</div>`;
+            } 
+            else if (phase === "FINALE_TIPP") {
+                // Show champion pick prominently
+                html += `<h3 style="margin-top: 30px; margin-bottom: 15px;">🏆 Dein Weltmeister-Tipp</h3>`;
+                html += `
+                    <div style="background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); padding: 30px; border-radius: 12px; margin: 20px 0; box-shadow: 0 8px 20px rgba(0,0,0,0.15);">
+                        <p style="color: #333; font-size: 0.9em; text-transform: uppercase; letter-spacing: 2px;">Weltmeister</p>
+                        <h2 style="color: #333; font-size: 2.5em; margin: 10px 0;">${picks}</h2>
+                    </div>
+                `;
+            }
+
+            html += `
+                    <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-top: 30px; border-left: 4px solid #007bff;">
+                        <p style="color: #1976d2; font-weight: bold; margin: 0;">⏳ Warte auf den Start der Simulation am Beamer...</p>
+                        <p style="color: #666; font-size: 0.9em; margin: 10px 0 0 0;">Die Phase wird bald beginnen.</p>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
         }
 
         function renderUI(phase) {
@@ -88,6 +139,12 @@
             }
             else if (phase === "RUNDE_1_GRUPPEN_TIPP") {
                 // Phase 2: Group winners (12 dropdowns)
+                // Check if already submitted
+                const savedPicks = localStorage.getItem('picks_' + phase);
+                if (savedPicks) {
+                    return renderSubmittedView(container, phase, JSON.parse(savedPicks));
+                }
+                
                 const savedNick = localStorage.getItem('userNickname');
                 let groupsHTML = `
                     <h1>✍️ Tipprunde ist offen!</h1>
@@ -148,6 +205,12 @@
         }
 
         async function loadRound2UI(container) {
+            // Check if already submitted
+            const savedPicks = localStorage.getItem('picks_RUNDE_2_TIPP');
+            if (savedPicks) {
+                return renderSubmittedView(container, 'RUNDE_2_TIPP', JSON.parse(savedPicks));
+            }
+            
             const savedNick = localStorage.getItem('userNickname');
             
             try {
@@ -199,6 +262,12 @@
         }
 
         async function loadFinalsUI(container) {
+            // Check if already submitted
+            const savedPicks = localStorage.getItem('picks_FINALE_TIPP');
+            if (savedPicks) {
+                return renderSubmittedView(container, 'FINALE_TIPP', JSON.parse(savedPicks));
+            }
+            
             const savedNick = localStorage.getItem('userNickname');
             
             try {
@@ -356,7 +425,7 @@
             const hp = document.getElementById('bot_email').value;
 
             if (!nick) {
-                showSuccessModal('⚠️ Fehler', 'Bitte gib einen Nickname ein!');
+                showErrorModal('⚠️ Fehler', 'Bitte gib einen Nickname ein!');
                 setTimeout(clearSuccessModal, 3000);
                 return;
             }
@@ -372,13 +441,13 @@
             if (data.success) {
                 // Store nickname in localStorage for phase 2
                 localStorage.setItem('userNickname', nick);
-                showSuccessModal(
+                showErrorModal(
                     'Nickname gespeichert! 🎉',
-                    `Dein Nickname: <strong>${nick}</strong>`,
-                    'Warte auf die nächste Phase...'
+                    `Dein Nickname: <strong>${nick}</strong>`
                 );
+                setTimeout(clearSuccessModal, 3000);
             } else {
-                showSuccessModal('⚠️ Fehler', data.error);
+                showErrorModal('⚠️ Fehler', data.error);
                 setTimeout(clearSuccessModal, 3000);
             }
         }
@@ -388,7 +457,7 @@
             const nickname = localStorage.getItem('userNickname');
             
             if (!nickname) {
-                showSuccessModal('⚠️ Fehler', 'Kein Nickname gefunden. Bitte starte die Phase neu!');
+                showErrorModal('⚠️ Fehler', 'Kein Nickname gefunden. Bitte starte die Phase neu!');
                 setTimeout(clearSuccessModal, 3000);
                 return;
             }
@@ -412,7 +481,7 @@
                 }
                 
                 if (!allSelected) {
-                    showSuccessModal('⚠️ Fehler', 'Bitte wähle einen Sieger für alle 12 Gruppen!');
+                    showErrorModal('⚠️ Fehler', 'Bitte wähle einen Sieger für alle 12 Gruppen!');
                     setTimeout(clearSuccessModal, 3000);
                     return;
                 }
@@ -424,7 +493,7 @@
                 selections = Array.from(checkedBoxes).map(box => box.value);
                 
                 if (selections.length !== 4) {
-                    showSuccessModal('⚠️ Fehler', 'Bitte wähle exakt 4 Teams aus!');
+                    showErrorModal('⚠️ Fehler', 'Bitte wähle exakt 4 Teams aus!');
                     setTimeout(clearSuccessModal, 3000);
                     return;
                 }
@@ -435,7 +504,7 @@
                 const selectedRadio = document.querySelector('.champion-radio:checked');
                 
                 if (!selectedRadio) {
-                    showSuccessModal('⚠️ Fehler', 'Bitte wähle einen Champion!');
+                    showErrorModal('⚠️ Fehler', 'Bitte wähle einen Champion!');
                     setTimeout(clearSuccessModal, 3000);
                     return;
                 }
@@ -444,7 +513,7 @@
             }
             
             if (selections === null) {
-                showSuccessModal('⚠️ Fehler', 'Unbekannte Phase!');
+                showErrorModal('⚠️ Fehler', 'Unbekannte Phase!');
                 setTimeout(clearSuccessModal, 3000);
                 return;
             }
@@ -458,13 +527,12 @@
             const data = await res.json();
             
             if (data.success) {
-                showSuccessModal(
-                    'Tipps abgegeben! 🏆',
-                    'Deine Tipps wurden erfolgreich gespeichert.',
-                    'Warte auf die nächste Phase...'
-                );
+                // Save picks to localStorage for this phase
+                localStorage.setItem('picks_' + currentPhase, JSON.stringify(selections));
+                // Re-render UI to show submitted view
+                renderUI(currentPhase);
             } else {
-                showSuccessModal('⚠️ Fehler', data.error);
+                showErrorModal('⚠️ Fehler', data.error);
                 setTimeout(clearSuccessModal, 3000);
             }
         }

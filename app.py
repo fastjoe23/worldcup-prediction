@@ -497,6 +497,8 @@ def submit_selections():
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
+                # Ensure late joiners are registered in participants table
+                cur.execute('INSERT INTO participants (nickname) VALUES (%s) ON CONFLICT DO NOTHING', (nickname,))
                 cur.execute('INSERT INTO predictions (nickname, phase, selections) VALUES (%s, %s, %s)', (nickname, get_phase(), json.dumps(selections)))
             conn.commit()
         return jsonify({'success': True, 'message': 'Tipps gespeichert!'})

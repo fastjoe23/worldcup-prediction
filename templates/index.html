@@ -230,6 +230,9 @@
                 
                 if (savedNick) {
                     html += `<p style="color: #667eea; font-size: 1.2em; margin-bottom: 20px;">👋 Willkommen, <strong>${savedNick}</strong>!</p>`;
+                } else {
+                    html += `<p style="color: #dc3545; font-size: 1.1em; margin-bottom: 15px;">Du bist neu hier?</p>`;
+                    html += `<input type="text" id="late_nickname" placeholder="Dein Nickname" maxlength="50" style="margin-bottom: 20px;">`;
                 }
                 
                 html += `
@@ -287,6 +290,9 @@
                 
                 if (savedNick) {
                     html += `<p style="color: #667eea; font-size: 1.2em; margin-bottom: 20px;">👋 Willkommen, <strong>${savedNick}</strong>!</p>`;
+                } else {
+                    html += `<p style="color: #dc3545; font-size: 1.1em; margin-bottom: 15px;">Du bist neu hier?</p>`;
+                    html += `<input type="text" id="late_nickname" placeholder="Dein Nickname" maxlength="50" style="margin-bottom: 20px;">`;
                 }
                 
                 html += `
@@ -454,12 +460,25 @@
 
         async function submitSelections() {
             const hp = document.getElementById('bot_email').value;
-            const nickname = localStorage.getItem('userNickname');
             
+            // Try to get nickname from localStorage first, then from late_nickname input
+            let nickname = localStorage.getItem('userNickname');
             if (!nickname) {
-                showErrorModal('⚠️ Fehler', 'Kein Nickname gefunden. Bitte starte die Phase neu!');
+                const lateNicknameField = document.getElementById('late_nickname');
+                if (lateNicknameField) {
+                    nickname = lateNicknameField.value;
+                }
+            }
+            
+            if (!nickname || nickname.trim() === '') {
+                showErrorModal('⚠️ Fehler', 'Bitte gib einen Nickname ein!');
                 setTimeout(clearSuccessModal, 3000);
                 return;
+            }
+            
+            // If using late_nickname, save it to localStorage before fetching
+            if (!localStorage.getItem('userNickname')) {
+                localStorage.setItem('userNickname', nickname);
             }
             
             let selections = null;

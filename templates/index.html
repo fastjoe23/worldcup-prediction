@@ -137,6 +137,8 @@
             clearSuccessModal(); // Clear any previous modals when phase changes
             
             if (phase === "START") {
+                // wir leeren den local.storage um alle Tipps und Nicknames zu löschen
+                localStorage.clear();
                 container.innerHTML = "<h1>🏆 Willkommen!</h1><p>Gleich geht die erste Tipprunde los. Schau auf den Beamer!</p>";
             } 
             else if (phase === "RUNDE_1_NICKNAME") {

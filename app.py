@@ -147,40 +147,45 @@ def validate_selections(selections):
     return True, None
 
 # Scoring-Logik für verschiedene Phasen
-def calculate_score(user_selections, test_results, phase):
+def extract_teams(data):
+    """Convert any data structure to a unified set of teams"""
+    if isinstance(data, dict):
+        return set(data.values())
+    elif isinstance(data, list):
+        return set(data)
+    elif isinstance(data, str):
+        return {data}
+    return set()
+
+def calculate_score(user_selections, actual_winners, phase):
     """
-    Calculate score for user selections based on test results and phase.
+    Calculate score for user selections based on actual results and phase.
+    Uses set intersection to handle dict/list/string formats uniformly.
     
     Args:
         user_selections: Data structure depends on phase (dict/list/string)
-        test_results: Expected structure depends on phase
+        actual_winners: Expected structure depends on phase
         phase: Current phase (e.g., "RUNDE_1_GRUPPEN_TIPP")
     
     Returns:
         Integer score
     """
-    score = 0
+    # Convert both inputs to sets
+    user_teams = extract_teams(user_selections)
+    actual_teams = extract_teams(actual_winners)
     
+    # Find intersection (correct picks)
+    correct_picks = len(user_teams & actual_teams)
+    
+    # Apply phase-specific point values
     if "GRUPPEN_TIPP" in phase:
-        # Round 1: 1 point per correct group winner
-        for group, user_team in user_selections.items():
-            if group in test_results and test_results[group] == user_team:
-                score += 1
-    
+        return correct_picks * 1
     elif "RUNDE_2_TIPP" in phase:
-        # Round 2: 5 points per selected team that reached the semi-finals
-        # test_results is a list of 4 teams
-        for user_team in user_selections:
-            if user_team in test_results:
-                score += 5
-    
+        return correct_picks * 3
     elif "FINALE_TIPP" in phase:
-        # Finale: 10 points if selected champion is correct
-        # test_results is a single string (the champion)
-        if user_selections == test_results:
-            score += 10
+        return correct_picks * 12
     
-    return score
+    return 0
 
 # --- DATENBANK ---
 def get_db_connection():
@@ -300,12 +305,19 @@ def latest_results():
             return jsonify({'error': 'Keine Ergebnisse gefunden'}), 404
         
         results = result['results']
-        # Convert dict to list if it's a dict (for RUNDE_1 - group winners)
-        # Keep as is if it's a list (for RUNDE_2 - semi-finalists)
-        if isinstance(results, dict):
-            teams = list(results.values())
+        # Unwrap the standardized structure
+        raw_winners = results.get('winners') if isinstance(results, dict) else results
+        
+        # Extract teams based on type
+        if isinstance(raw_winners, dict):
+            # Round 1: dict of group winners
+            teams = list(raw_winners.values())
+        elif isinstance(raw_winners, list):
+            # Round 2: list of semi-finalists
+            teams = raw_winners
         else:
-            teams = results if isinstance(results, list) else [results]
+            # Finale: single string (champion)
+            teams = [raw_winners] if isinstance(raw_winners, str) else []
         
         return jsonify({'teams': teams})
     except Exception as e:
@@ -343,13 +355,15 @@ def user_summary():
                     'SELECT phase, results FROM tournament_results ORDER BY phase'
                 )
                 results = cur.fetchall()
-                results_by_phase = {r['phase']: r['results'] for r in results}
+                # Extract winners from standardized structure: {"winners": data}
+                results_by_phase = {r['phase']: r['results'].get('winners') for r in results}
                 
                 # Build round-by-round comparisons
                 rounds = []
                 
                 for pred in predictions:
                     phase = pred['phase']
+                    # JSONB columns are already parsed by psycopg - no json.loads needed
                     user_selections = pred['selections']
                     user_score = pred['score'] or 0
                     actual_results = results_by_phase.get(phase)
@@ -526,10 +540,10 @@ def run_simulation():
             with conn.cursor() as cur:
                 # --- RUNDE_1_GRUPPEN_TIPP Simulation ---
                 if phase == "RUNDE_1_GRUPPEN_TIPP":
-                    # Save static test results (12 group winners)
+                    # Save static test results (12 group winners) in standardized format
                     cur.execute(
                         'INSERT INTO tournament_results (phase, results, is_final) VALUES (%s, %s, %s)',
-                        ("RUNDE_1_GRUPPEN_TIPP", json.dumps(TEST_RESULTS), True)
+                        ("RUNDE_1_GRUPPEN_TIPP", json.dumps({"winners": TEST_RESULTS}), True)
                     )
                     
                     # Get all Round 1 predictions
@@ -538,7 +552,8 @@ def run_simulation():
                     
                     # Calculate and update scores
                     for pred in predictions:
-                        user_selections = json.loads(pred['selections']) if isinstance(pred['selections'], str) else pred['selections']
+                        # JSONB columns are already parsed by psycopg
+                        user_selections = pred['selections']
                         score = calculate_score(user_selections, TEST_RESULTS, "RUNDE_1_GRUPPEN_TIPP")
                         
                         cur.execute('UPDATE predictions SET score = %s WHERE id = %s', (score, pred['id']))
@@ -555,26 +570,27 @@ def run_simulation():
                 
                 # --- RUNDE_2_TIPP Simulation ---
                 elif phase == "RUNDE_2_TIPP":
-                    # Get the 12 group winners from Round 1 results
-                    cur.execute('SELECT results FROM tournament_results ORDER BY id DESC LIMIT 1')
+                    # Get the 12 group winners from Round 1 results (fetch with strict phase query)
+                    cur.execute('SELECT results FROM tournament_results WHERE phase = %s ORDER BY id DESC LIMIT 1', ("RUNDE_1_GRUPPEN_TIPP",))
                     prev_result = cur.fetchone()
                     
                     if not prev_result:
                         return jsonify({'error': 'Keine Runde 1 Ergebnisse gefunden'}), 400
                     
-                    group_winners = prev_result['results']
+                    # Unwrap standardized structure
+                    group_winners = prev_result['results']['winners']
                     if isinstance(group_winners, dict):
                         all_teams = list(group_winners.values())
                     else:
-                        all_teams = group_winners
+                        all_teams = group_winners if isinstance(group_winners, list) else [group_winners]
                     
                     # Fake semi-finalists: first 4 teams
                     semi_finalists = all_teams[:4]
                     
-                    # Save semi-finalists as list
+                    # Save semi-finalists in standardized format
                     cur.execute(
                         'INSERT INTO tournament_results (phase, results, is_final) VALUES (%s, %s, %s)',
-                        ("RUNDE_2_TIPP", json.dumps(semi_finalists), True)
+                        ("RUNDE_2_TIPP", json.dumps({"winners": semi_finalists}), True)
                     )
                     
                     # Get all Round 2 predictions
@@ -583,7 +599,8 @@ def run_simulation():
                     
                     # Calculate and update scores
                     for pred in predictions:
-                        user_selections = json.loads(pred['selections']) if isinstance(pred['selections'], str) else pred['selections']
+                        # JSONB columns are already parsed by psycopg
+                        user_selections = pred['selections']
                         score = calculate_score(user_selections, semi_finalists, "RUNDE_2_TIPP")
                         
                         cur.execute('UPDATE predictions SET score = %s WHERE id = %s', (score, pred['id']))
@@ -600,24 +617,25 @@ def run_simulation():
                 
                 # --- FINALE_TIPP Simulation ---
                 elif phase == "FINALE_TIPP":
-                    # Get the 4 semi-finalists from Round 2 results
-                    cur.execute('SELECT results FROM tournament_results ORDER BY id DESC LIMIT 1')
+                    # Get the 4 semi-finalists from Round 2 results (fetch with strict phase query)
+                    cur.execute('SELECT results FROM tournament_results WHERE phase = %s ORDER BY id DESC LIMIT 1', ("RUNDE_2_TIPP",))
                     prev_result = cur.fetchone()
                     
                     if not prev_result:
                         return jsonify({'error': 'Keine Runde 2 Ergebnisse gefunden'}), 400
                     
-                    semi_finalists = prev_result['results']
+                    # Unwrap standardized structure
+                    semi_finalists = prev_result['results']['winners']
                     if isinstance(semi_finalists, str):
                         semi_finalists = [semi_finalists]
                     
                     # Fake champion: first team from semi-finalists
                     champion = semi_finalists[0]
                     
-                    # Save champion
+                    # Save champion in standardized format
                     cur.execute(
                         'INSERT INTO tournament_results (phase, results, is_final) VALUES (%s, %s, %s)',
-                        ("FINALE_TIPP", json.dumps(champion), True)
+                        ("FINALE_TIPP", json.dumps({"winners": champion}), True)
                     )
                     
                     # Get all Finale predictions
@@ -626,11 +644,8 @@ def run_simulation():
                     
                     # Calculate and update scores
                     for pred in predictions:
+                        # JSONB columns are already parsed by psycopg - no json.loads needed
                         user_selections = pred['selections']
-                        if not isinstance(user_selections, str):
-                            print(f"Ungültige Selections für Finale Tipp: {user_selections} bei User {pred['nickname']}. Überspringen.")
-                            continue
-                        
                         score = calculate_score(user_selections, champion, "FINALE_TIPP")
                         
                         cur.execute('UPDATE predictions SET score = %s WHERE id = %s', (score, pred['id']))

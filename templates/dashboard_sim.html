@@ -13,7 +13,7 @@
             <img src="/static/DHBW_d_S_46mm_4c-1920w.webp" alt="DHBW Logo" class="header-logo">
         </div>
         <div class="logo-right logo-invert">
-            <img src="/static/vers_logo_freigestellt_weiß-1920w.webp" alt="VersLeipzig Logo" class="header-logo logo-invert">
+            <img src="/static/vers_logo.png" alt="VersLeipzig Logo" class="header-logo">
         </div>
     </header>
 
@@ -304,8 +304,21 @@
 
                     updateGroupDOM(group, match.home, match.away);
                 }
-                await sleep(400); 
+                await sleep(500); 
             }
+
+            // Kurze dramaturgische Pause nach dem letzten Spiel
+            await sleep(1000);
+
+            // Gruppensieger mit Animation hervorheben
+            PHASE_1_GROUPS.forEach(groupLetter => {
+                const tableContainer = document.getElementById(`table-${groupLetter}`);
+                if (tableContainer && tableContainer.children.length > 0) {
+                    // Da die Liste live sortiert wurde, ist das erste Element (Index 0) immer der Sieger
+                    const winnerRow = tableContainer.children[0];
+                    winnerRow.classList.add('group-winner');
+                }
+            });
         }
 
         // Optimiert: Nutzt textContent statt innerHTML falls Nodes bereits existieren

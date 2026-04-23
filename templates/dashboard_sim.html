@@ -424,6 +424,8 @@
         async function runKORoundTimeline(r32Matches, r16Matches, qfMatches) {
             const container = document.getElementById('ko-rounds-container');
             const titleElement = document.getElementById('current-round-title');
+            await revealLeaderboard(); // Leaderboard hier schon enthüllen, da es in Phase 2 immer sichtbar ist und die K.O.-Runden spannender wirken
+
 
             if (r32Matches.length > 0) {
                 if (titleElement) titleElement.textContent = "Sechzehntelfinale";
@@ -513,6 +515,8 @@
             document.getElementById('phase-1-content').style.display = 'none';
             document.getElementById('phase-2-content').style.display = 'none';
             document.getElementById('phase-3-content').style.display = 'block';
+
+            await revealLeaderboard(); // Leaderboard hier schon enthüllen, da es in Phase 3 immer sichtbar ist und die Finalspiele spannender wirken
 
             const data = masterData || await fetchSimData();
             if (!data) return;

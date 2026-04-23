@@ -65,8 +65,8 @@
 
         async function updateDashboard() {
             try {
-                // 1. Status & Phase prüfen
                 const stateRes = await fetch('/api/state');
+                if (!stateRes.ok) return;
                 const state = await stateRes.json();
                 
                 if (currentPhase !== state.phase) {
@@ -74,26 +74,30 @@
                     initLayout(currentPhase);
                 }
 
-                // 2. Fortschritt laden
                 const progRes = await fetch('/api/dashboard/progress');
-                const prog = await progRes.json();
-                document.getElementById('progress-bar').style.width = prog.percent + '%';
-                document.getElementById('progress-text').innerText = `${prog.submitted} von ${prog.total} Teilnehmern haben getippt`;
-                document.getElementById('progress-percent').innerText = prog.percent + '%';
+                if (progRes.ok) {
+                    const prog = await progRes.json();
+                    document.getElementById('progress-bar').style.width = (prog.percent || 0) + '%';
+                    document.getElementById('progress-text').innerText = `${prog.submitted || 0} von ${prog.total || 0} Teilnehmern haben getippt`;
+                    document.getElementById('progress-percent').innerText = (prog.percent || 0) + '%';
+                }
 
-                // 3. Trends laden (Wir nehmen an, die API liefert die aggregierten Daten)
                 const trendRes = await fetch('/api/dashboard/tipping-trends');
+                if (!trendRes.ok) return;
                 const trendData = await trendRes.json();
 
-                if (currentPhase.includes("RUNDE_1")) {
+                // FEHLERBEHEBUNG: Hier prüfen wir explizit, ob die Keys im JSON existieren
+                if (currentPhase.includes("RUNDE_1") && trendData.groups) {
                     renderGroupTrends(trendData.groups);
-                } else if (currentPhase.includes("RUNDE_2")) {
+                } else if (currentPhase.includes("RUNDE_2") && trendData.counts) {
                     renderBarChart(trendData.counts);
-                } else if (currentPhase.includes("FINALE")) {
+                } else if (currentPhase.includes("FINALE") && trendData.counts) {
                     renderPieChart(trendData.counts);
                 }
 
-            } catch (e) { console.error("Update Error:", e); }
+            } catch (e) { 
+                console.error("Update Error:", e); 
+            }
         }
 
         function initLayout(phase) {
@@ -104,38 +108,47 @@
 
         function renderGroupTrends(groups) {
             const grid = document.getElementById('groups-grid');
+            if (!grid) return;
             grid.innerHTML = '';
             
+            // FEHLERBEHEBUNG: Prüfen, ob groups existiert
+            if (!groups || typeof groups !== 'object') {
+                console.warn("renderGroupTrends: Keine gültigen Gruppendaten erhalten", groups);
+                return;
+            }
+
             for (const [group, teams] of Object.entries(groups)) {
-                // Sortiere Teams nach Tipp-Anzahl absteigend
-                const sortedTeams = Object.entries(teams).sort((a, b) => b[1] - a[1]);
+                // Sicherstellen, dass teams ein Objekt ist
+                const teamEntries = teams ? Object.entries(teams) : [];
+                const sortedTeams = teamEntries.sort((a, b) => b[1] - a[1]);
                 
                 const card = document.createElement('div');
                 card.className = 'group-trend-card';
                 card.innerHTML = `<h3>Gruppe ${group}</h3><ul>` + 
-                    sortedTeams.map(([name, count], idx) => `
+                    (sortedTeams.length > 0 ? sortedTeams.map(([name, count], idx) => `
                         <li class="${idx === 0 ? 'top-pick' : ''}">
                             <span class="team-name">${name}</span>
                             <span class="vote-count">${count} Tipps</span>
                         </li>
-                    `).join('') + `</ul>`;
+                    `).join('') : '<li>Noch keine Tipps</li>') + `</ul>`;
                 grid.appendChild(card);
             }
         }
 
         function renderBarChart(data) {
-            const ctx = document.getElementById('barChart').getContext('2d');
-            const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]);
+            const ctx = document.getElementById('barChart');
+            if (!ctx || !data) return;
             
+            const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]);
             const labels = sorted.map(s => s[0]);
             const values = sorted.map(s => s[1]);
 
             if (barChart) {
                 barChart.data.labels = labels;
                 barChart.data.datasets[0].data = values;
-                barChart.update();
+                barChart.update('none'); // 'none' verhindert unnötige Animationen bei jedem Polling
             } else {
-                barChart = new Chart(ctx, {
+                barChart = new Chart(ctx.getContext('2d'), {
                     type: 'bar',
                     data: {
                         labels: labels,
@@ -158,7 +171,9 @@
         }
 
         function renderPieChart(data) {
-            const ctx = document.getElementById('pieChart').getContext('2d');
+            const ctx = document.getElementById('pieChart');
+            if (!ctx || !data) return;
+            
             const labels = Object.keys(data);
             const values = Object.values(data);
 
@@ -167,7 +182,7 @@
                 pieChart.data.datasets[0].data = values;
                 pieChart.update();
             } else {
-                pieChart = new Chart(ctx, {
+                pieChart = new Chart(ctx.getContext('2d'), {
                     type: 'pie',
                     data: {
                         labels: labels,
@@ -178,7 +193,12 @@
                     },
                     options: { 
                         responsive: true, 
-                        plugins: { legend: { position: 'bottom', labels: { font: { size: 18 } } } } 
+                        plugins: { 
+                            legend: { 
+                                position: 'bottom', 
+                                labels: { color: '#1a1a2e', font: { size: 16, weight: 'bold' } } 
+                            } 
+                        } 
                     }
                 });
             }

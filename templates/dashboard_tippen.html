@@ -2,46 +2,190 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>WM 2026 - Tippen</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WM 2026 - Tipp-Trends</title>
     <link rel="stylesheet" href="/static/dashboard_style.css">
+    <link rel="stylesheet" href="/static/dashboard_tippen_style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="phase-tippen">
-    <div class="progress-wrapper">
-        <div id="progress-bar" class="progress-fill" style="width: 0%"></div>
-        <div id="progress-text">0 / 0 Tipps abgegeben</div>
-    </div>
-
-    <div class="main-content">
-        <h2>Tipprunde läuft...</h2>
-        <div class="trend-card">
-            <h3>Heißester Tipp aktuell:</h3>
-            <div id="top-trend">Lade Trends...</div>
+  <!-- Header mit Logos -->
+    <header class="dashboard-header">
+        <div class="logo-left">
+            <img src="/static/DHBW_d_S_46mm_4c-1920w.webp" alt="DHBW Logo" class="header-logo">
         </div>
-    </div>
+        <div id="current-round-title" class="round-display">GRUPPENPHASE</div>      
+        <div class="progress-section">
+            <div class="progress-info">
+                <span id="progress-text">Warte auf Teilnehmer...</span>
+                <span id="progress-percent">0%</span>
+            </div>
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-fill" style="width: 0%"></div>
+            </div>
+        </div>
+        <div class="logo-right">
+            <img src="/static/vers_logo.png" alt="VersLeipzig Logo" class="header-logo">
+        </div>
+
+
+    </header>
+
+    <main class="main-content">
+        <div id="trends-runde-1" class="trend-container" style="display: none;">
+            <h1 class="trend-title">Aktuelle Favoriten pro Gruppe</h1>
+            <div id="groups-grid" class="groups-grid">
+                </div>
+        </div>
+
+        <div id="trends-runde-2" class="trend-container" style="display: none;">
+            <h1 class="trend-title">Wer zieht ins Halbfinale ein?</h1>
+            <div class="chart-wrapper">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+
+        <div id="trends-finale" class="trend-container" style="display: none;">
+            <h1 class="trend-title">Der Weltmeister</h1>
+            <div class="pie-chart-container">
+                <canvas id="pieChart"></canvas>
+            </div>
+        </div>
+    </main>
 
     <div class="qr-mini">
-        <img src="/static/qrcode.png">
-        <p>Noch beitreten!</p>
+        <img src="/static/qrcode.png" alt="QR Code">
+        <p>Scannen & Tippen!</p>
     </div>
 
     <script>
-        // Aktuelle Phase beim Laden der Seite speichern
-        let localPhase = "";
+        let currentPhase = "";
+        let barChart = null;
+        let pieChart = null;
 
-        async function checkPhase() {
+        async function updateDashboard() {
             try {
-                const res = await fetch('/api/state');
-                const data = await res.json();
+                // 1. Status & Phase prüfen
+                const stateRes = await fetch('/api/state');
+                const state = await stateRes.json();
                 
-                if (localPhase === "") {
-                    localPhase = data.phase; // Initiales Setzen
-                } else if (localPhase !== data.phase) {
-                    // Die Phase hat sich geändert -> Einfach die Beamer-Seite neu laden!
-                    window.location.reload(); 
+                if (currentPhase !== state.phase) {
+                    currentPhase = state.phase;
+                    initLayout(currentPhase);
                 }
-            } catch (e) { console.error("Polling error"); }
+
+                // 2. Fortschritt laden
+                const progRes = await fetch('/api/dashboard/progress');
+                const prog = await progRes.json();
+                document.getElementById('progress-bar').style.width = prog.percent + '%';
+                document.getElementById('progress-text').innerText = `${prog.submitted} von ${prog.total} Teilnehmern haben getippt`;
+                document.getElementById('progress-percent').innerText = prog.percent + '%';
+
+                // 3. Trends laden (Wir nehmen an, die API liefert die aggregierten Daten)
+                const trendRes = await fetch('/api/dashboard/tipping-trends');
+                const trendData = await trendRes.json();
+
+                if (currentPhase.includes("RUNDE_1")) {
+                    renderGroupTrends(trendData.groups);
+                } else if (currentPhase.includes("RUNDE_2")) {
+                    renderBarChart(trendData.counts);
+                } else if (currentPhase.includes("FINALE")) {
+                    renderPieChart(trendData.counts);
+                }
+
+            } catch (e) { console.error("Update Error:", e); }
         }
-        setInterval(checkPhase, 3000);
+
+        function initLayout(phase) {
+            document.getElementById('trends-runde-1').style.display = phase.includes("RUNDE_1") ? "block" : "none";
+            document.getElementById('trends-runde-2').style.display = phase.includes("RUNDE_2") ? "block" : "none";
+            document.getElementById('trends-finale').style.display = phase.includes("FINALE") ? "block" : "none";
+        }
+
+        function renderGroupTrends(groups) {
+            const grid = document.getElementById('groups-grid');
+            grid.innerHTML = '';
+            
+            for (const [group, teams] of Object.entries(groups)) {
+                // Sortiere Teams nach Tipp-Anzahl absteigend
+                const sortedTeams = Object.entries(teams).sort((a, b) => b[1] - a[1]);
+                
+                const card = document.createElement('div');
+                card.className = 'group-trend-card';
+                card.innerHTML = `<h3>Gruppe ${group}</h3><ul>` + 
+                    sortedTeams.map(([name, count], idx) => `
+                        <li class="${idx === 0 ? 'top-pick' : ''}">
+                            <span class="team-name">${name}</span>
+                            <span class="vote-count">${count} Tipps</span>
+                        </li>
+                    `).join('') + `</ul>`;
+                grid.appendChild(card);
+            }
+        }
+
+        function renderBarChart(data) {
+            const ctx = document.getElementById('barChart').getContext('2d');
+            const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]);
+            
+            const labels = sorted.map(s => s[0]);
+            const values = sorted.map(s => s[1]);
+
+            if (barChart) {
+                barChart.data.labels = labels;
+                barChart.data.datasets[0].data = values;
+                barChart.update();
+            } else {
+                barChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Anzahl Tipps',
+                            data: values,
+                            backgroundColor: '#667eea',
+                            borderRadius: 10
+                        }]
+                    },
+                    options: { 
+                        indexAxis: 'y', 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { beginAtZero: true, grid: { display: false } } }
+                    }
+                });
+            }
+        }
+
+        function renderPieChart(data) {
+            const ctx = document.getElementById('pieChart').getContext('2d');
+            const labels = Object.keys(data);
+            const values = Object.values(data);
+
+            if (pieChart) {
+                pieChart.data.labels = labels;
+                pieChart.data.datasets[0].data = values;
+                pieChart.update();
+            } else {
+                pieChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a']
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        plugins: { legend: { position: 'bottom', labels: { font: { size: 18 } } } } 
+                    }
+                });
+            }
+        }
+
+        setInterval(updateDashboard, 2000);
+        updateDashboard();
     </script>
 </body>
 </html>

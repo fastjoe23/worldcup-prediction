@@ -757,6 +757,7 @@ body {
     align-items: center;
     justify-content: flex-start;
     padding-top: 40px;
+    margin-right: 25%;
 }
 
 /* Timer: Absolut einzeilig fixiert */
@@ -771,7 +772,8 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    min-width: fit-content; /* Sorgt dafür, dass der Container mitwächst */
+    width: auto;
+    min-width: 180px;
 }
 
 .timer-minutes, .timer-seconds {

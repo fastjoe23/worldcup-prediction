@@ -748,70 +748,70 @@ body {
    PHASE 3: HALBFINALE & FINALE
    =========================== */
 
+/* ===========================
+   PHASE 3 OPTIMIERUNG (KORREKTUR)
+   =========================== */
 .phase-finale .main-content {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    margin-right: 25%;
-    gap: 60px;
+    justify-content: flex-start;
+    padding-top: 40px;
 }
 
-.final-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 50px; /* Abstand zwischen Halbfinal-Karten */
-    width: 100%;
-    max-width: 1400px;
-}
-
-/* Halbfinal-Karten groß */
-.sf-card {
-    flex: 1;
-    transform: scale(1.2) !important;
-    padding: 25px;
-}
-
-/* Final-Karte noch größer */
-.final-card {
-    flex: 1;
-    max-width: 800px;
-    transform: scale(1.5) !important;
-    padding: 30px;
-}
-
-/* Schriften in Phase 3 Spielen anpassen */
-.sf-card .match-team, .final-card .match-team {
-    font-size: 1.4em;
-}
-
-.sf-card .match-result, .final-card .match-result {
-    font-size: 2.5em;
-    padding: 10px 20px;
-}
-
-/* Timer Display */
+/* Timer: Absolut einzeilig fixiert */
 .timer-display {
-    padding: 15px 30px;
-    margin-bottom: 50px; /* Abstand zu den Spielen */
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important; /* Verhindert Zeilenumbruch */
+    align-items: center;
+    justify-content: center;
+    padding: 10px 25px;
+    margin-bottom: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    min-width: fit-content; /* Sorgt dafür, dass der Container mitwächst */
 }
 
 .timer-minutes, .timer-seconds {
-    font-size: 3.5em !important; /* Vorher riesig */
+    font-size: 3.5em !important;
+    color: white;
+    font-family: 'Courier New', Courier, monospace; /* Monospace verhindert Wackeln der Zahlen */
 }
 
 .timer-separator {
     font-size: 3em !important;
-    margin: 0 15px;
+    color: white;
+    margin: 0 10px;
+    padding-bottom: 5px; /* Optische Korrektur der Höhe */
 }
 
-.timer-label {
-    bottom: -30px;
-    font-size: 0.9em;
+/* Spiele-Container: Untereinander stapeln */
+.final-container {
+    display: flex;
+    flex-direction: column; /* SPIELE UNTEREINANDER */
+    align-items: center;
+    justify-content: center;
+    gap: 80px; /* Großer vertikaler Abstand zwischen den Spielen */
+    width: 100%;
 }
+
+/* Halbfinal-Karten */
+.sf-card {
+    width: 80%;
+    max-width: 900px;
+    transform: scale(1.1); /* Moderatere Skalierung für vertikales Layout */
+    transition: all 0.5s ease;
+}
+
+/* Final-Karte (Einzelschlacht) */
+.final-card {
+    width: 90%;
+    max-width: 1000px;
+    transform: scale(1.4);
+}
+
 @keyframes timerPulse {
     0%, 100% {
         opacity: 1;

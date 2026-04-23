@@ -140,6 +140,29 @@
             }
         }
 
+        // ===========================
+        // NEUE LEADERBOARD LOGIK
+        // ===========================
+        async function revealLeaderboard() {
+            // Erst jetzt rufen wir die echten Daten ab
+            await fetchLeaderboard(); 
+            
+            const table = document.getElementById('leaderboard-table');
+            const entries = table.querySelectorAll('.leaderboard-entry');
+            
+            // Simpler "Fill-up" Effekt von unten nach oben
+            entries.forEach((el, index) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    el.style.transition = 'all 0.5s ease-out';
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, index * 150); // Gestaffeltes Einblenden
+            });
+        }
+
         async function fetchLeaderboard() {
             try {
                 const res = await fetch('/api/participants');
@@ -615,7 +638,7 @@
 
                 // Pre-fetch Data
                 await fetchSimData();
-                await fetchLeaderboard();
+                
 
                 // Start Phase Logic
                 if (currentPhase === "RUNDE_1_SIM") {
@@ -631,10 +654,10 @@
 
                 // Setup Managed Intervals
                 if (phaseInterval) clearInterval(phaseInterval);
-                if (leaderboardInterval) clearInterval(leaderboardInterval);
+                
                 
                 phaseInterval = setInterval(checkPhase, 3000);
-                leaderboardInterval = setInterval(fetchLeaderboard, 2000);
+                
 
             } catch (e) { 
                 console.error("Critical initialization error:", e);

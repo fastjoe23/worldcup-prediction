@@ -18,8 +18,7 @@ load_dotenv()
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
-# --- CACHE INITIALISIERUNG ---
-app.config["PHASE_CACHE"] = None
+
 
 # --- SESSION CONFIGURATION ---
 app.config["SESSION_PERMANENT"] = True
@@ -218,15 +217,12 @@ def init_db():
 
 # Hilfsfunktionen für den Status
 def get_phase():
-    # Cache verwenden, um DB-Zugriffe zu minimieren (wird bei Phase-Änderung zurückgesetzt)
-    if app.config["PHASE_CACHE"] is not None:
-        return app.config["PHASE_CACHE"]
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT current_phase FROM system_state WHERE id = 1")
-            app.config["PHASE_CACHE"] = cur.fetchone()["current_phase"]
-        return app.config["PHASE_CACHE"]
+            phase = cur.fetchone()["current_phase"]
+        return phase
 
 
 def set_phase(new_phase):
@@ -237,9 +233,6 @@ def set_phase(new_phase):
                 "UPDATE system_state SET current_phase = %s WHERE id = 1", (new_phase,)
             )
         conn.commit()
-
-    # Cache nicht vergessen
-    app.config["PHASE_CACHE"] = new_phase
 
 
 # Initialize database on module import (works with Gunicorn and local development)
@@ -579,8 +572,7 @@ def reset_db():
                 )
             conn.commit()
 
-        #Phase Cache setzen
-        app.config["PHASE_CACHE"] = PHASES[0]
+
 
         return jsonify({"success": True, "message": "Datenbank komplett geleert!"})
     except Exception as e:
@@ -682,9 +674,6 @@ def run_simulation():
                     (next_phase,),
                 )
                 conn.commit()
-
-                # Phase Cache aktualisieren
-                app.config["PHASE_CACHE"] = next_phase
 
                 return jsonify(
                     {

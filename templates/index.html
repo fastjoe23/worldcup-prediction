@@ -250,20 +250,19 @@
                 const data = await res.json();
                 
                 if (!res.ok) {
-                    container.innerHTML = "<h1>⚠️ Fehler</h1><p>Keine Ergebnisse aus Runde 1 gefunden!</p>";
+                    container.innerHTML = "<h1>⚠️ Fehler</h1><p>Keine Ergebnisse gefunden!</p>";
                     return;
                 }
                 
-                const teams = data.teams;
+                const pairings = data.pairings;
                 
-                // Fallback check for empty teams
-                if (!teams || teams.length === 0) {
-                    container.innerHTML = "<h1>⚠️ Fehler</h1><p>Keine Teams in der Datenbank gefunden. Bitte Simulation der Vorrunde prüfen.</p>";
+                if (!pairings || pairings.length === 0) {
+                    container.innerHTML = "<h1>⚠️ Fehler</h1><p>Keine Paarungen in der Datenbank gefunden.</p>";
                     return;
                 }
                 
                 let html = `
-                    <h1>🏅 Halbfinale-Tipps</h1>
+                    <h1>🏅 Viertelfinale-Tipps</h1>
                 `;
                 
                 if (savedNick) {
@@ -274,23 +273,37 @@
                 }
                 
                 html += `
-                    <p>Wähle die 4 Teams aus, die ins Halbfinale kommen:</p>
+                    <p>Wer gewinnt die direkten Duelle und zieht ins Halbfinale ein?</p>
                     <div class="hp-field"><input type="text" id="bot_email"></div>
-                    <div class="teams-grid">
+                    <div class="pairings-grid" style="display: flex; flex-direction: column; gap: 15px;">
                 `;
                 
-                teams.forEach(team => {
+                // Wir iterieren über die 4 Duelle und erstellen Radio-Buttons
+                pairings.forEach((match, index) => {
                     html += `
-                        <label>
-                            <input type="checkbox" class="team-checkbox" value="${team}">
-                            ${team}
-                        </label>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; text-align: left;">
+                            <p style="margin: 0 0 10px 0; font-size: 0.85em; color: #6c757d; text-transform: uppercase; letter-spacing: 1px;">Duell ${index + 1}</p>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                <label style="display: flex; align-items: center; gap: 12px; font-size: 1.1em; cursor: pointer;">
+                                    <input type="radio" name="match_${index}" class="qf-radio" value="${match.team1}" style="transform: scale(1.3);">
+                                    <strong>${match.team1}</strong>
+                                </label>
+                                
+                                <div style="color: #adb5bd; font-size: 0.85em; margin: -5px 0 -5px 30px; font-weight: bold;">VS</div>
+                                
+                                <label style="display: flex; align-items: center; gap: 12px; font-size: 1.1em; cursor: pointer;">
+                                    <input type="radio" name="match_${index}" class="qf-radio" value="${match.team2}" style="transform: scale(1.3);">
+                                    <strong>${match.team2}</strong>
+                                </label>
+                            </div>
+                        </div>
                     `;
                 });
                 
                 html += `
                     </div>
-                    <button id="selectionsButton" style="margin-top: 20px;">Tipps abgeben</button>
+                    <button id="selectionsButton" style="margin-top: 25px; width: 100%;">Tipps abgeben</button>
                     <div id="msg"></div>
                 `;
                 
@@ -580,13 +593,14 @@
                 }
             }
             
-            // RUNDE_2_TIPP: Gather checked checkboxes (exactly 4)
+            // RUNDE_2_TIPP: Gather selected radio buttons from the matchups
             else if (currentPhase === "RUNDE_2_TIPP") {
-                const checkedBoxes = document.querySelectorAll('.team-checkbox:checked');
+                const checkedBoxes = document.querySelectorAll('.qf-radio:checked');
                 selections = Array.from(checkedBoxes).map(box => box.value);
                 
+                // Wir haben 4 Duelle, also müssen exakt 4 Radio-Buttons markiert sein
                 if (selections.length !== 4) {
-                    showErrorModal('⚠️ Fehler', 'Bitte wähle exakt 4 Teams aus!');
+                    showErrorModal('⚠️ Fehler', 'Bitte wähle für jedes der 4 Duelle einen Sieger aus!');
                     setTimeout(clearSuccessModal, 3000);
                     btn.disabled = false;
                     btn.style.cursor = 'pointer';

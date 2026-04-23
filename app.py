@@ -271,47 +271,32 @@ def get_participants():
 
 @app.route("/api/latest-results", methods=["GET"])
 def latest_results():
-    """Get the tournament results from the previous round"""
+    """Holt die Turnier-Daten aus dem Master-Drehbuch für die Tipp-Runden"""
     try:
         current_phase = get_phase()
-        prev_phase = None
-
-        # Determine which phase's results we need based on current phase
-        if current_phase == "RUNDE_2_TIPP":
-            prev_phase = "RUNDE_1_GRUPPEN_TIPP"
-        elif current_phase == "FINALE_TIPP":
-            prev_phase = "RUNDE_2_TIPP"
-
-        if not prev_phase:
-            return jsonify({"error": "Keine vorherige Phase gefunden"}), 400
 
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT results FROM tournament_results WHERE phase = %s ORDER BY id DESC LIMIT 1",
-                    (prev_phase,),
+                    "SELECT results FROM tournament_results WHERE phase = %s",
+                    ("MASTER_SIMULATION",),
                 )
-                result = cur.fetchone()
+                master_row = cur.fetchone()
 
-        if not result:
-            return jsonify({"error": "Keine Ergebnisse gefunden"}), 404
+        if not master_row:
+            return jsonify({"error": "Keine Simulation in der Datenbank gefunden"}), 404
 
-        results = result["results"]
-        # Unwrap the standardized structure
-        raw_winners = results.get("winners") if isinstance(results, dict) else results
+        master_data = master_row["results"]
 
-        # Extract teams based on type
-        if isinstance(raw_winners, dict):
-            # Round 1: dict of group winners
-            teams = list(raw_winners.values())
-        elif isinstance(raw_winners, list):
-            # Round 2: list of semi-finalists
-            teams = raw_winners
+        if current_phase == "RUNDE_2_TIPP":
+            # Wir liefern die Paarungen für das Viertelfinale ans Handy!
+            return jsonify({"pairings": master_data.get("qf_pairings", [])})
+        elif current_phase == "FINALE_TIPP":
+            # Wir liefern die 4 Halbfinalisten für den Weltmeister-Tipp
+            return jsonify({"teams": master_data.get("semi_finalists", [])})
         else:
-            # Finale: single string (champion)
-            teams = [raw_winners] if isinstance(raw_winners, str) else []
+            return jsonify({"error": "Falsche Phase für diese Abfrage"}), 400
 
-        return jsonify({"teams": teams})
     except Exception as e:
         return jsonify({"error": f"Fehler: {str(e)}"}), 500
 

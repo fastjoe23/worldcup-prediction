@@ -8,6 +8,7 @@ from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 import psycopg
 from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 from simulation import WorldCupSimulation
@@ -17,6 +18,7 @@ load_dotenv()
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
+# --- CACHE INITIALISIERUNG ---
 app.config["PHASE_CACHE"] = None
 
 # --- SESSION CONFIGURATION ---
@@ -39,7 +41,16 @@ Talisman(
     },
 )
 
-
+# --- DATENBANK CONNECTION POOL ---
+DATABASE_URL = os.getenv("DATABASE_URL")
+# Der Pool wird global gestartet und verwaltet die Verbindungen im Hintergrund
+pool = ConnectionPool(
+  conninfo=DATABASE_URL,
+  min_size=2,
+  max_size=10,
+  kwargs={"row_factory": dict_row},
+  open=True
+)
 
 # --- KONFIGURATION ---
 EVENT_ACCESS_CODE = os.getenv("EVENT_ACCESS_CODE", "WM2026")
@@ -159,7 +170,8 @@ def calculate_score(user_selections, actual_winners, phase):
 
 # --- DATENBANK ---
 def get_db_connection():
-    return psycopg.connect(os.getenv("DATABASE_URL"), row_factory=dict_row)
+    """Holt eine freie Verbindung aus dem Pool """
+    return pool.connection()
 
 
 def init_db():
@@ -213,7 +225,8 @@ def get_phase():
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT current_phase FROM system_state WHERE id = 1")
-            return cur.fetchone()["current_phase"]
+            app.config["PHASE_CACHE"] = cur.fetchone()["current_phase"]
+        return app.config["PHASE_CACHE"]
 
 
 def set_phase(new_phase):
@@ -566,6 +579,9 @@ def reset_db():
                 )
             conn.commit()
 
+        #Phase Cache setzen
+        app.config["PHASE_CACHE"] = PHASES[0]
+
         return jsonify({"success": True, "message": "Datenbank komplett geleert!"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -666,6 +682,9 @@ def run_simulation():
                     (next_phase,),
                 )
                 conn.commit()
+
+                # Phase Cache aktualisieren
+                app.config["PHASE_CACHE"] = next_phase
 
                 return jsonify(
                     {

@@ -43,7 +43,7 @@
             } catch (e) { console.error("Verbindungsproblem", e); }
         }
 
-        setInterval(checkPhase, 3000);
+        let phaseInterval = setInterval(checkPhase, 3000);
         checkPhase(); // Sofort beim Start ausführen
 
         // Helper function to show success modal (Green with checkmark)
@@ -541,6 +541,9 @@
             const originalText = btn.innerHTML;
             const hp = document.getElementById('bot_email').value;
 
+            //polling kurz stoppen
+            clearInterval(phaseInterval);
+
             
             //btn blockieren
             btn.disabled = true;
@@ -670,6 +673,9 @@
                 btn.disabled = false;
                 btn.innerHTML = originalText;
                 btn.style.cursor = 'pointer';
+            } finally {
+            // Polling wieder starten, egal ob Erfolg oder Fehler
+            phaseInterval = setInterval(checkPhase, 3000);
             }
         }
     </script>

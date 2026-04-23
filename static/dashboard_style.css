@@ -385,3 +385,7 @@ body {
         padding: 12px 20px;
     }
 }
+
+.logo-invert {
+    filter: invert(100%); /* Macht aus Weiß exakt Schwarz */
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>WM 2026 - Tippen</title>
+    <link rel="stylesheet" href="/static/dashboard_style.css">
+</head>
+<body class="phase-tippen">
+    <div class="progress-wrapper">
+        <div id="progress-bar" class="progress-fill" style="width: 0%"></div>
+        <div id="progress-text">0 / 0 Tipps abgegeben</div>
+    </div>
+
+    <div class="main-content">
+        <h2>Tipprunde läuft...</h2>
+        <div class="trend-card">
+            <h3>Heißester Tipp aktuell:</h3>
+            <div id="top-trend">Lade Trends...</div>
+        </div>
+    </div>
+
+    <div class="qr-mini">
+        <img src="/static/qr-code.png">
+        <p>Noch beitreten!</p>
+    </div>
+
+    <script>
+        // Aktuelle Phase beim Laden der Seite speichern
+        let localPhase = "";
+
+        async function checkPhase() {
+            try {
+                const res = await fetch('/api/state');
+                const data = await res.json();
+                
+                if (localPhase === "") {
+                    localPhase = data.phase; // Initiales Setzen
+                } else if (localPhase !== data.phase) {
+                    // Die Phase hat sich geändert -> Einfach die Beamer-Seite neu laden!
+                    window.location.reload(); 
+                }
+            } catch (e) { console.error("Polling error"); }
+        }
+        setInterval(checkPhase, 3000);
+    </script>
+</body>
+</html>

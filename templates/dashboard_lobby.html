@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WM 2026 - Lobby</title>
+    <link rel="stylesheet" href="/static/dashboard_style.css">
+</head>
+<body class="phase-start">
+    <header class="dashboard-header">
+        <div class="logo-left">
+            <img src="/static/DHBW_d_S_46mm_4c-1920w.webp" alt="DHBW Logo" class="header-logo">
+        </div>
+        <div class="logo-right">
+            <img src="/static/vers_logo_freigestellt_weiß-1920w.webp" alt="VersLeipzig Logo" class="header-logo">
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="qr-section">
+            <div class="qr-container" id="qr-main-container">
+                <img src="/static/qr-code.png" id="qr-main" alt="QR-Code zum Scannen">
+                <div class="qr-text" id="qr-text">Scannen & Beitreten</div>
+            </div>
+        </div>
+
+        <div class="center-stage" id="center-stage">
+            <h1 class="stage-title" id="stage-title">Scannen & Beitreten</h1>
+            <div id="nickname-stream" class="nickname-container"></div>
+        </div>
+
+        <div class="counter-box" id="counter-box">
+            <div class="counter-number" id="user-count">0</div>
+            <div class="counter-label">Teilnehmer online</div>
+        </div>
+    </div>
+
+    <footer class="sponsors-banner">
+        <span class="sponsor-text">Partner:</span>
+        <img src="/static/adesso_basic_Color_RGB-71eb02c9-1920w.png" alt="Sponsor 1" class="sponsor-logo">
+        <img src="/static/logo_msg_RGB-1920w.jpg" alt="Sponsor 2" class="sponsor-logo">
+        <img src="/static/viadico_logo-4fb06a49-1920w.png" alt="Sponsor 3" class="sponsor-logo">
+    </footer>
+
+    <script>
+        // State management
+        let currentPhase = "START";
+        let previousParticipantCount = 0;
+        const participantNicknames = new Set();
+
+        // Poll phase every 3 seconds
+        async function checkPhase() {
+            try {
+                const res = await fetch('/api/state');
+                const data = await res.json();
+                const newPhase = data.phase;
+
+                if (newPhase === "START") {
+                    document.body.className = "phase-start";
+                    currentPhase = "START";
+                } else if (newPhase === "RUNDE_1_NICKNAME") {
+                    document.body.className = "phase-nickname";
+                    currentPhase = "RUNDE_1_NICKNAME";
+                } else {
+                    // Any other phase: redirect to dashboard
+                    window.location.href = '/dashboard';
+                }
+            } catch (e) {
+                console.error("Phase polling error:", e);
+            }
+        }
+
+        // Poll participants every 2 seconds
+        async function updateParticipants() {
+            try {
+                const res = await fetch('/api/participants');
+                const data = await res.json();
+                const currentCount = data.participants.length;
+
+                // Update counter
+                const counterElement = document.getElementById('user-count');
+                if (currentCount !== previousParticipantCount) {
+                    // Trigger bounce animation
+                    counterElement.classList.remove('bounce-animate');
+                    // Force reflow to restart animation
+                    void counterElement.offsetWidth;
+                    counterElement.classList.add('bounce-animate');
+                    previousParticipantCount = currentCount;
+                }
+                counterElement.innerText = currentCount;
+
+                // Add only new nicknames
+                const stream = document.getElementById('nickname-stream');
+                data.participants.forEach(p => {
+                    if (!participantNicknames.has(p.nickname)) {
+                        participantNicknames.add(p.nickname);
+                        const el = document.createElement('div');
+                        el.className = 'nickname-badge';
+                        el.innerText = p.nickname;
+                        stream.appendChild(el);
+
+                        // Keep only last 10 nicknames visible
+                        const badges = stream.querySelectorAll('.nickname-badge');
+                        if (badges.length > 10) {
+                            badges[0].remove();
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Participant polling error:", e);
+            }
+        }
+
+        // Initial setup
+        checkPhase();
+        updateParticipants();
+
+        // Set up polling intervals
+        setInterval(checkPhase, 3000);
+        setInterval(updateParticipants, 2000);
+    </script>
+</body>
+</html>

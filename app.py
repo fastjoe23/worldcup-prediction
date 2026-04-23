@@ -258,9 +258,23 @@ def admin_page():
     return render_template("admin.html")
 
 
-@app.route("/dashboard")
-def dashboard_page():
-    return render_template("dashboard.html")
+@app.route('/dashboard')
+def dashboard_router():
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT current_phase FROM system_state WHERE id = 1")
+            phase = cur.fetchone()["current_phase"]
+
+    # Weiterleitung basierend auf deinem Bauplan
+    if phase in ["START", "RUNDE_1_NICKNAME"]:
+        return render_template('dashboard_lobby.html')
+    elif "_TIPP" in phase:
+        return render_template('dashboard_tippen.html')
+    elif "_SIM" in phase:
+        return render_template('dashboard_sim.html')
+    elif phase == "ENDE":
+        return render_template('dashboard_final.html')
+    return render_template('dashboard_lobby.html')
 
 
 # --- API ROUTES (Daten & Logik) ---
@@ -278,8 +292,8 @@ def get_participants():
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT nickname, created_at FROM participants ORDER BY created_at ASC"
-                )
+                    "SELECT nickname, score, created_at FROM participants ORDER BY score DESC, created_at ASC"
+                    )
                 participants = cur.fetchall()
         return jsonify({"count": len(participants), "participants": participants})
     except Exception as e:
@@ -317,6 +331,72 @@ def latest_results():
     except Exception as e:
         return jsonify({"error": f"Fehler: {str(e)}"}), 500
 
+@app.route("/api/dashboard/progress", methods=["GET"])
+def get_progress():
+    """Gibt zurück, wie viele User in der aktuellen Tipp-Phase schon abgegeben haben"""
+    current_phase = get_phase()
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # Anzahl aller Teilnehmer
+                cur.execute("SELECT COUNT(*) as total FROM participants")
+                total_users = cur.fetchone()["total"]
+                
+                # Anzahl der Tipps in der aktuellen Phase
+                cur.execute("SELECT COUNT(*) as submitted FROM predictions WHERE phase = %s", (current_phase,))
+                submitted_users = cur.fetchone()["submitted"]
+                
+        return jsonify({
+            "total": total_users,
+            "submitted": submitted_users,
+            "percent": int((submitted_users / total_users * 100) if total_users > 0 else 0)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/sim-results", methods=["GET"])
+def get_sim_results():
+    """Holt die detaillierten Simulationsergebnisse für den Beamer-Reveal"""
+    current_phase = get_phase()
+    
+    # Wir holen uns die Rohdaten der Master-Simulation, da dort ALLE Details (Tore, etc.) liegen
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT results FROM tournament_results WHERE phase = %s", ("MASTER_SIMULATION",))
+                master_row = cur.fetchone()
+                
+        if not master_row:
+            return jsonify({"error": "Keine Simulation gefunden"}), 404
+            
+        full_details = master_row["results"].get("full_details", {})
+        
+        # Je nach Phase filtern wir, was der Beamer zeigen soll
+        if current_phase == "RUNDE_1_SIM":
+            # Gruppenphase
+            return jsonify({
+                "matches": full_details.get("group_matches", []),
+                "standings": master_row["results"].get("group_standings", {})
+            })
+        elif current_phase == "RUNDE_2_SIM":
+            # Achtel- und Viertelfinale
+            return jsonify({
+                "r32": full_details.get("r32", []),
+                "r16": full_details.get("r16", []),
+                "qf": full_details.get("qf", [])
+            })
+        elif current_phase == "FINALE_SIM":
+            # Halbfinale und Finale
+            return jsonify({
+                "sf": full_details.get("sf", []),
+                "f": full_details.get("f", []),
+                "champion": master_row["results"].get("champion")
+            })
+        else:
+            return jsonify({"message": "Keine Sim-Daten für diese Phase"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/user-summary", methods=["GET"])
 def user_summary():

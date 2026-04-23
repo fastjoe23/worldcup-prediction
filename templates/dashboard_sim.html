@@ -65,7 +65,7 @@
 
     <!-- QR-Code Mini (unten rechts) -->
     <div class="qr-mini">
-        <img src="/static/qr-code.png" alt="QR-Code">
+        <img src="/static/qrcode.png" alt="QR-Code">
     </div>
 
     <!-- Sponsoren-Banner (unten) -->
@@ -219,10 +219,8 @@
             grid.innerHTML = '';
 
             PHASE_1_GROUPS.forEach(groupLetter => {
-                const groupInfo = groupsData[groupLetter] || {
-                    teams: [],
-                    matches: []
-                };
+                
+                const teams = groupsData[groupLetter] || [];
 
                 const card = document.createElement('div');
                 card.className = 'group-card';
@@ -230,12 +228,12 @@
                 card.innerHTML = `
                     <h3 class="group-title">Gruppe ${groupLetter}</h3>
                     <div class="group-table">
-                        ${groupInfo.teams.map((team, idx) => `
-                            <div class="group-row" data-team="${team.name}">
+                        ${teams.map((entry, idx) => `
+                            <div class="group-row" data-team="${entry.team}">
                                 <div class="group-rank">${idx + 1}</div>
-                                <div class="group-name">${team.name}</div>
-                                <div class="group-stat">${team.points || 0}P</div>
-                                <div class="group-stat">${team.gd || 0}TH</div>
+                                <div class="group-name">${entry.team}</div>
+                                <div class="group-stat">${entry.p || 0}P</div>
+                                <div class="group-stat">${entry.diff || 0}TD</div>
                             </div>
                         `).join('')}
                     </div>

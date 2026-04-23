@@ -76,7 +76,7 @@
         <img src="/static/viadico_logo-4fb06a49-1920w.png" alt="Sponsor 3" class="sponsor-logo">
     </footer>
 
-    <script>
+<script>
         // ===========================
         // STATE & DATA MANAGEMENT
         // ===========================
@@ -85,6 +85,9 @@
         let leaderboardData = [];
         let previousLeaderboardOrder = [];
         const PHASE_1_GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+        
+        let phaseInterval = null;
+        let leaderboardInterval = null;
 
         // ===========================
         // HELPER FUNCTIONS
@@ -111,7 +114,10 @@
                 const data = await res.json();
                 const newPhase = data.phase;
 
-                if (currentPhase !== newPhase) {
+                if (currentPhase !== null && currentPhase !== newPhase) {
+                    // Sauberes Aufräumen vor dem Reload (verhindert Memory Leaks)
+                    if (phaseInterval) clearInterval(phaseInterval);
+                    if (leaderboardInterval) clearInterval(leaderboardInterval);
                     window.location.reload();
                 }
             } catch (e) {
@@ -122,13 +128,25 @@
         async function fetchSimData() {
             try {
                 const res = await fetch('/api/dashboard/sim-results');
+                if (!res.ok) throw new Error("Sim data fetch failed");
                 const data = await res.json();
                 masterData = data;
-                leaderboardData = data.leaderboard || [];
                 return data;
             } catch (e) {
                 console.error("Sim data polling error:", e);
                 return null;
+            }
+        }
+
+        async function fetchLeaderboard() {
+            try {
+                const res = await fetch('/api/participants');
+                if (!res.ok) throw new Error("Leaderboard fetch failed");
+                const data = await res.json();
+                leaderboardData = data.participants || [];
+                animateLeaderboardUpdate();
+            } catch (e) {
+                console.error("Leaderboard error:", e);
             }
         }
 
@@ -139,7 +157,6 @@
             const table = document.getElementById('leaderboard-table');
             const newEntries = leaderboardData.slice(0, 10);
 
-            // Check if order has changed
             const newOrder = newEntries.map(e => e.nickname).join(',');
             const oldOrder = previousLeaderboardOrder.join(',');
 
@@ -147,16 +164,19 @@
                 return; // Keine Änderung
             }
 
-            // FLIP Animation
-            // 1. GET first position of old elements
+            // FLIP Animation (Optimiert gegen Layout Thrashing)
+            
+            // 1. FIRST (Old positions lesen)
             const oldRects = new Map();
-            table.querySelectorAll('.leaderboard-entry').forEach(el => {
+            Array.from(table.children).forEach(el => {
                 oldRects.set(el.getAttribute('data-nickname'), el.getBoundingClientRect());
             });
 
-            // 2. UPDATE DOM
+            // 2. DOM UPDATE (DocumentFragment für bessere Performance)
             previousLeaderboardOrder = newOrder.split(',');
             table.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            
             newEntries.forEach((entry, index) => {
                 const el = document.createElement('div');
                 el.className = 'leaderboard-entry';
@@ -166,31 +186,35 @@
                     <div class="lb-name">${entry.nickname}</div>
                     <div class="lb-score">${entry.score || 0} Pkt.</div>
                 `;
-                table.appendChild(el);
+                fragment.appendChild(el);
             });
+            table.appendChild(fragment);
 
-            // 3. GET last position of new elements
+            // 3. LAST (New positions lesen)
             const newRects = new Map();
-            table.querySelectorAll('.leaderboard-entry').forEach(el => {
+            const newElements = Array.from(table.children);
+            newElements.forEach(el => {
                 newRects.set(el.getAttribute('data-nickname'), el.getBoundingClientRect());
             });
 
-            // 4. INVERT
-            table.querySelectorAll('.leaderboard-entry').forEach(el => {
+            // 4. INVERT (Transformieren ohne Transition)
+            newElements.forEach(el => {
                 const nickname = el.getAttribute('data-nickname');
                 const oldRect = oldRects.get(nickname);
                 const newRect = newRects.get(nickname);
 
                 if (oldRect && newRect) {
                     const deltaY = oldRect.top - newRect.top;
+                    el.style.transition = 'none'; // WICHTIG!
                     el.style.transform = `translateY(${deltaY}px)`;
                     el.style.opacity = '0.8';
                 }
             });
 
-            // 5. PLAY
-            table.querySelectorAll('.leaderboard-entry').forEach(el => {
-                el.offsetHeight; // Trigger reflow
+            // 5. PLAY (Reflow nur 1x triggern, dann Transition setzen)
+            table.offsetHeight; // Einziger Reflow!
+
+            newElements.forEach(el => {
                 el.style.transition = 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
                 el.style.transform = 'translateY(0)';
                 el.style.opacity = '1';
@@ -200,6 +224,8 @@
         // ===========================
         // PHASE 1: GRUPPENPHASE
         // ===========================
+        let liveGroupStats = {};
+
         async function initPhase1() {
             console.log("Initializing Phase 1 - Gruppenphase");
             document.body.className = 'phase-sim phase-runde-1';
@@ -207,58 +233,133 @@
             document.getElementById('phase-2-content').style.display = 'none';
             document.getElementById('phase-3-content').style.display = 'none';
 
-            const data = await fetchSimData();
+            const data = masterData || await fetchSimData();
             if (!data) return;
 
-            createGroupsGrid(data.standings || {});
-            updateMatchTicker(data.matches || []);
+            initLiveGroupStats(data.standings || {});
+            createGroupsGrid();
+            document.getElementById('match-ticker').innerHTML = '';
+            await runGroupTimeline(data.matches || []);
         }
 
-        function createGroupsGrid(groupsData) {
+        function initLiveGroupStats(finalStandings) {
+            liveGroupStats = {};
+            PHASE_1_GROUPS.forEach(groupLetter => {
+                const teams = finalStandings[groupLetter] || [];
+                liveGroupStats[groupLetter] = teams.map(t => ({
+                    team: t.team || t.name, // Fallback für Sicherheit
+                    p: 0,
+                    diff: 0,
+                    goals: 0
+                }));
+            });
+        }
+
+        function createGroupsGrid() {
             const grid = document.getElementById('groups-grid');
             grid.innerHTML = '';
 
             PHASE_1_GROUPS.forEach(groupLetter => {
-                
-                const teams = groupsData[groupLetter] || [];
-
                 const card = document.createElement('div');
                 card.className = 'group-card';
                 card.id = `group-${groupLetter}`;
                 card.innerHTML = `
                     <h3 class="group-title">Gruppe ${groupLetter}</h3>
-                    <div class="group-table">
-                        ${teams.map((entry, idx) => `
-                            <div class="group-row" data-team="${entry.team}">
-                                <div class="group-rank">${idx + 1}</div>
-                                <div class="group-name">${entry.team}</div>
-                                <div class="group-stat">${entry.p || 0}P</div>
-                                <div class="group-stat">${entry.diff || 0}TD</div>
-                            </div>
-                        `).join('')}
-                    </div>
+                    <div class="group-table" id="table-${groupLetter}"></div>
                 `;
                 grid.appendChild(card);
+                updateGroupDOM(groupLetter); // Initiale Befüllung
             });
         }
 
-        function updateMatchTicker(matches) {
-            const ticker = document.getElementById('match-ticker');
-            ticker.innerHTML = '';
+        async function runGroupTimeline(matches) {
+            for (const match of matches) {
+                pushToTicker(match);
 
-            matches.slice(0, 8).forEach(match => {
-                const tickerItem = document.createElement('div');
-                tickerItem.className = 'ticker-item';
-                const [homeGoals = '0', awayGoals = '0'] = (match.score || '0:0').split(':');
-                tickerItem.innerHTML = `
-                    <div class="ticker-match">
-                        <span class="ticker-team">${match.home || '—'}</span>
-                        <span class="ticker-result">${homeGoals}-${awayGoals}</span>
-                        <span class="ticker-team">${match.away || '—'}</span>
+                const [hGoalsStr = '0', aGoalsStr = '0'] = (match.score || '0:0').split(':');
+                const hGoals = parseInt(hGoalsStr, 10);
+                const aGoals = parseInt(aGoalsStr, 10);
+                
+                const group = match.group;
+                if (!liveGroupStats[group]) continue;
+
+                const hTeam = liveGroupStats[group].find(t => t.team === match.home);
+                const aTeam = liveGroupStats[group].find(t => t.team === match.away);
+
+                if (hTeam && aTeam) {
+                    if (hGoals > aGoals) { hTeam.p += 3; }
+                    else if (aGoals > hGoals) { aTeam.p += 3; }
+                    else { hTeam.p += 1; aTeam.p += 1; }
+
+                    hTeam.diff += (hGoals - aGoals);
+                    aTeam.diff += (aGoals - hGoals);
+                    hTeam.goals += hGoals;
+                    aTeam.goals += aGoals;
+
+                    liveGroupStats[group].sort((a, b) => {
+                        if (b.p !== a.p) return b.p - a.p;
+                        if (b.diff !== a.diff) return b.diff - a.diff;
+                        return b.goals - a.goals;
+                    });
+
+                    updateGroupDOM(group, match.home, match.away);
+                }
+                await sleep(400); 
+            }
+        }
+
+        // Optimiert: Nutzt textContent statt innerHTML falls Nodes bereits existieren
+        function updateGroupDOM(groupLetter, team1 = null, team2 = null) {
+            const tableContainer = document.getElementById(`table-${groupLetter}`);
+            if (!tableContainer) return;
+
+            const teams = liveGroupStats[groupLetter] || [];
+            
+            // Wenn leer, baue das Gerüst
+            if (tableContainer.children.length === 0) {
+                tableContainer.innerHTML = teams.map((entry, idx) => `
+                    <div class="group-row" data-team="${entry.team}">
+                        <div class="group-rank">${idx + 1}</div>
+                        <div class="group-name">${entry.team}</div>
+                        <div class="group-stat">${entry.p}P</div>
+                        <div class="group-stat">${entry.diff > 0 ? '+' : ''}${entry.diff}</div>
                     </div>
-                `;
-                ticker.appendChild(tickerItem);
+                `).join('');
+                return;
+            }
+
+            // Wenn vorhanden, aktualisiere nur den Text (besser für DOM Performance)
+            teams.forEach((entry, idx) => {
+                const row = tableContainer.children[idx];
+                const isHighlight = (entry.team === team1 || entry.team === team2) ? 'highlight-row' : '';
+                
+                row.className = `group-row ${isHighlight}`;
+                row.setAttribute('data-team', entry.team);
+                row.children[0].textContent = idx + 1;
+                row.children[1].textContent = entry.team;
+                row.children[2].textContent = `${entry.p}P`;
+                row.children[3].textContent = `${entry.diff > 0 ? '+' : ''}${entry.diff}`;
             });
+        }
+
+        function pushToTicker(match) {
+            const ticker = document.getElementById('match-ticker');
+            const tickerItem = document.createElement('div');
+            tickerItem.className = 'ticker-item';
+            const [homeGoals = '0', awayGoals = '0'] = (match.score || '0:0').split(':');
+            
+            tickerItem.innerHTML = `
+                <div class="ticker-match">
+                    <span class="ticker-team">${match.home || '—'}</span>
+                    <span class="ticker-result">${homeGoals}-${awayGoals}</span>
+                    <span class="ticker-team">${match.away || '—'}</span>
+                </div>
+            `;
+            
+            ticker.prepend(tickerItem);
+            if (ticker.children.length > 10) {
+                ticker.lastChild.remove();
+            }
         }
 
         // ===========================
@@ -271,7 +372,7 @@
             document.getElementById('phase-2-content').style.display = 'block';
             document.getElementById('phase-3-content').style.display = 'none';
 
-            const data = await fetchSimData();
+            const data = masterData || await fetchSimData();
             if (!data) return;
 
             const r32Matches = data.r32 || [];
@@ -283,32 +384,28 @@
         async function runKORoundTimeline(r32Matches, r16Matches, qfMatches) {
             const container = document.getElementById('ko-rounds-container');
 
-            // Stage 1: Achtelfinale (16 Matches)
-            console.log("Starting K.O. Stage 1: 16 matches");
-            await runKOStage(container, r32Matches, 16, 'stage1');
-            await sleep(3000);
-
-            // Stage 2: Viertelfinale (8 Matches)
-            console.log("Starting K.O. Stage 2: 8 matches");
-            await runKOStage(container, r16Matches, 8, 'stage2');
-            await sleep(3000);
-
-            // Stage 3: Halbfinale (4 Matches)
-            console.log("Starting K.O. Stage 3: 4 matches");
-            await runKOStage(container, qfMatches, 4, 'stage3');
+            if (r32Matches.length > 0) {
+                await runKOStage(container, r32Matches, 16, 'stage1');
+                await sleep(3000);
+            }
+            if (r16Matches.length > 0) {
+                await runKOStage(container, r16Matches, 8, 'stage2');
+                await sleep(3000);
+            }
+            if (qfMatches.length > 0) {
+                await runKOStage(container, qfMatches, 4, 'stage3');
+            }
         }
 
         async function runKOStage(container, matches, gridSize, stageName) {
             container.innerHTML = '';
             container.className = `ko-grid ko-grid-${gridSize} ${stageName}`;
 
-            // Create empty match cards (0:0)
             matches.forEach((match, idx) => {
                 const card = createMatchCard(match, idx, true);
                 container.appendChild(card);
             });
 
-            // Animate results poppin in
             const cards = container.querySelectorAll('.match-card');
             const shuffledIndices = shuffle([...Array(cards.length).keys()]);
 
@@ -321,11 +418,11 @@
                     const [homeGoals = '0', awayGoals = '0'] = match.score.split(':');
                     const resultEl = card.querySelector('.match-result');
                     resultEl.innerHTML = `${homeGoals}-${awayGoals}`;
+                    resultEl.dataset.empty = "false";
                     resultEl.classList.add('result-pop');
                 }
             }
 
-            // Apply zoom/transition effect for next stage
             if (gridSize > 4) {
                 await sleep(2000);
                 container.classList.add('zoom-out');
@@ -341,14 +438,18 @@
             if (!showEmpty && match.score) {
                 displayScore = match.score;
             }
+            
+            const t1 = match.team1 || match.home || '—';
+            const t2 = match.team2 || match.away || '—';
+
             card.innerHTML = `
                 <div class="match-header">${match.round || 'K.O.'}</div>
                 <div class="match-teams">
-                    <div class="match-team">${match.home || '—'}</div>
-                    <div class="match-result" ${showEmpty ? 'data-empty="true"' : ''}>
+                    <div class="match-team">${t1}</div>
+                    <div class="match-result" ${showEmpty ? 'data-empty="true"' : 'data-empty="false"'}>
                         ${displayScore}
                     </div>
-                    <div class="match-team">${match.away || '—'}</div>
+                    <div class="match-team">${t2}</div>
                 </div>
             `;
             return card;
@@ -364,7 +465,7 @@
             document.getElementById('phase-2-content').style.display = 'none';
             document.getElementById('phase-3-content').style.display = 'block';
 
-            const data = await fetchSimData();
+            const data = masterData || await fetchSimData();
             if (!data) return;
 
             const semifinals = data.sf || [];
@@ -375,22 +476,18 @@
         async function runFinalTimeline(semifinals, finals) {
             const container = document.getElementById('final-container');
 
-            console.log("Starting Semifinals");
-
             for (const match of semifinals) {
                 container.innerHTML = '';
-                const card = createMatchCard(match);
+                const card = createMatchCard(match, 0, true);
                 container.appendChild(card);
 
                 await runFinalMatch(match, card);
                 await sleep(2000);
             }
 
-            // Final
             if (finals.length > 0) {
-                console.log("Starting Final");
                 container.innerHTML = '';
-                const finalCard = createMatchCard(finals[0]);
+                const finalCard = createMatchCard(finals[0], 0, true);
                 finalCard.classList.add('final-card');
                 container.appendChild(finalCard);
 
@@ -401,57 +498,41 @@
         async function runFinalMatch(match, cardElement) {
             const timerDisplay = document.getElementById('timer-display');
             const resultEl = cardElement.querySelector('.match-result');
+            resultEl.dataset.empty = "false";
 
-            // Parse target score from match.score (e.g., "2:1")
             const [targetHomeGoalsStr = '0', targetAwayGoalsStr = '0'] = (match.score || '0:0').split(':');
             const targetHomeGoals = parseInt(targetHomeGoalsStr, 10);
             const targetAwayGoals = parseInt(targetAwayGoalsStr, 10);
-            const totalTargetGoals = targetHomeGoals + targetAwayGoals;
 
-            // Pre-generate goal distribution across 90 minutes
             const goalMinutes = [];
-            for (let i = 0; i < targetHomeGoals; i++) {
-                // Random minute for home goal
-                goalMinutes.push({
-                    minute: Math.floor(Math.random() * 90),
-                    isHome: true
-                });
-            }
-            for (let i = 0; i < targetAwayGoals; i++) {
-                // Random minute for away goal
-                goalMinutes.push({
-                    minute: Math.floor(Math.random() * 90),
-                    isHome: false
-                });
-            }
-            // Sort by minute
+            for (let i = 0; i < targetHomeGoals; i++) goalMinutes.push({ minute: Math.floor(Math.random() * 88) + 1, isHome: true });
+            for (let i = 0; i < targetAwayGoals; i++) goalMinutes.push({ minute: Math.floor(Math.random() * 88) + 1, isHome: false });
             goalMinutes.sort((a, b) => a.minute - b.minute);
 
             let homeGoals = 0;
             let awayGoals = 0;
             let goalIndex = 0;
 
-            // Run 90 minute simulation (400ms per minute = ~36 seconds total)
-            for (let minute = 0; minute < 90; minute++) {
+            for (let minute = 0; minute <= 90; minute++) {
                 updateTimer(minute);
 
-                // Check if a goal should happen this minute
                 if (goalIndex < goalMinutes.length && goalMinutes[goalIndex].minute === minute) {
-                    if (goalMinutes[goalIndex].isHome) {
-                        homeGoals++;
-                    } else {
-                        awayGoals++;
-                    }
+                    if (goalMinutes[goalIndex].isHome) homeGoals++;
+                    else awayGoals++;
+                    
                     resultEl.innerHTML = `${homeGoals}-${awayGoals}`;
-                    resultEl.classList.add('result-pop');
-                    await sleep(300);
                     resultEl.classList.remove('result-pop');
+                    void resultEl.offsetWidth; // Force reflow to restart animation
+                    resultEl.classList.add('result-pop');
+                    
+                    await sleep(300);
                     goalIndex++;
                 }
-
-                await sleep(400); // 400ms per minute = ~36 seconds for 90 min
+                await sleep(400); 
             }
-
+            
+            // Ensure final score is accurate in case of skipped minutes
+            resultEl.innerHTML = `${targetHomeGoals}-${targetAwayGoals}`;
             updateTimer(90);
         }
 
@@ -464,50 +545,43 @@
         }
 
         // ===========================
-        // MAIN LOOP
+        // MAIN ENTRY POINT
         // ===========================
         async function main() {
             console.log("Dashboard SIM initialized");
 
-            // Fetch initial phase from API
             try {
+                // Initialize State
                 const phaseRes = await fetch('/api/state');
+                if (!phaseRes.ok) throw new Error("Could not fetch initial state");
                 const phaseData = await phaseRes.json();
                 currentPhase = phaseData.phase;
-                console.log("Current phase:", currentPhase);
-            } catch (e) {
-                console.error("Could not fetch phase:", e);
-                return;
-            }
 
-            // Fetch initial sim data
-            const initialData = await fetchSimData();
-            if (!initialData) {
-                console.error("Could not fetch initial data");
-                return;
-            }
-
-            // Initialize based on phase
-            if (currentPhase === "RUNDE_1_SIM") {
-                await initPhase1();
-            } else if (currentPhase === "RUNDE_2_SIM") {
-                await initPhase2();
-            } else if (currentPhase === "FINALE_SIM") {
-                await initPhase3();
-            } else {
-                console.warn("Unknown phase:", currentPhase);
-                return;
-            }
-
-            // Update leaderboard
-            animateLeaderboardUpdate();
-
-            // Set up polling
-            setInterval(checkPhase, 3000);
-            setInterval(async () => {
+                // Pre-fetch Data
                 await fetchSimData();
-                animateLeaderboardUpdate();
-            }, 2000);
+                await fetchLeaderboard();
+
+                // Start Phase Logic
+                if (currentPhase === "RUNDE_1_SIM") {
+                    await initPhase1();
+                } else if (currentPhase === "RUNDE_2_SIM") {
+                    await initPhase2();
+                } else if (currentPhase === "FINALE_SIM") {
+                    await initPhase3();
+                }
+
+                // Setup Managed Intervals
+                if (phaseInterval) clearInterval(phaseInterval);
+                if (leaderboardInterval) clearInterval(leaderboardInterval);
+                
+                phaseInterval = setInterval(checkPhase, 3000);
+                leaderboardInterval = setInterval(fetchLeaderboard, 2000);
+
+            } catch (e) { 
+                console.error("Critical initialization error:", e);
+                // Retry nach 5 Sekunden, falls der Server kurz weg war
+                setTimeout(main, 5000);
+            }
         }
 
         // Start on page load

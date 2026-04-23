@@ -510,7 +510,7 @@ body {
 /* Groups Grid */
 .groups-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
     width: 100%;
     padding-bottom: 20px;
@@ -587,13 +587,27 @@ body {
     color: #1a1a2e;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .group-stat {
     text-align: center;
     color: #555;
     font-size: 0.85em;
+    font-variant-numeric: tabular-nums;
 }
+
+/* Animation für Teams, die gerade ein Ergebnis im Ticker hatten */
+.highlight-row {
+    animation: flashRow 0.8s ease-out;
+}
+
+@keyframes flashRow {
+    0% { background-color: #667eea; color: white; transform: scale(1.02); }
+    100% { background-color: #f9f9f9; color: inherit; transform: scale(1); }
+}
+
+
 
 /* ===========================
    PHASE 2: K.O.-RUNDEN

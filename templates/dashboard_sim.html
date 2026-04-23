@@ -344,6 +344,8 @@
                     winnerRow.classList.add('group-winner');
                 }
             });
+            await sleep(500); 
+            await revealLeaderboard(); // Leaderboard erst am Ende der Gruppenphase enthüllen
         }
 
         // Optimiert: Nutzt textContent statt innerHTML falls Nodes bereits existieren
@@ -426,16 +428,22 @@
             if (r32Matches.length > 0) {
                 if (titleElement) titleElement.textContent = "Sechzehntelfinale";
                 await runKOStage(container, r32Matches, 16, 'stage1');
+                await sleep(500); 
+                await fetchLeaderboard(); // Leaderboard nach Runde 1 aktualisieren
                 await sleep(3000);
             }
             if (r16Matches.length > 0) {
                 if (titleElement) titleElement.textContent = "Achtelfinale";
                 await runKOStage(container, r16Matches, 8, 'stage2');
+                await sleep(500); 
+                await fetchLeaderboard(); // Leaderboard nach Runde 1 aktualisieren
                 await sleep(3000);
             }
             if (qfMatches.length > 0) {
                 if (titleElement) titleElement.textContent = "Viertelfinale";
                 await runKOStage(container, qfMatches, 4, 'stage3');
+                await sleep(500); 
+                await fetchLeaderboard(); // Leaderboard nach Runde 1 aktualisieren
             }
         }
 
@@ -537,7 +545,8 @@
                     { data: semifinals[0], card: card1 },
                     { data: semifinals[1], card: card2 }
                 ]);
-                
+                await sleep(500); 
+                await fetchLeaderboard(); // Leaderboard aktualisieren
                 await sleep(3000); // Pause vor dem Finale
             }
 
@@ -553,6 +562,8 @@
                 await runMatchesSimultaneously([
                     { data: finals[0], card: finalCard }
                 ]);
+                await sleep(500); 
+                await fetchLeaderboard(); // Leaderboard aktualisieren
             }
         }
 

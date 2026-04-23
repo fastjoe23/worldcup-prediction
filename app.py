@@ -44,11 +44,11 @@ Talisman(
 DATABASE_URL = os.getenv("DATABASE_URL")
 # Der Pool wird global gestartet und verwaltet die Verbindungen im Hintergrund
 pool = ConnectionPool(
-  conninfo=DATABASE_URL,
-  min_size=2,
-  max_size=10,
-  kwargs={"row_factory": dict_row},
-  open=True
+    conninfo=DATABASE_URL,
+    min_size=2,
+    max_size=10,
+    kwargs={"row_factory": dict_row},
+    open=True,
 )
 
 # --- KONFIGURATION ---
@@ -169,7 +169,7 @@ def calculate_score(user_selections, actual_winners, phase):
 
 # --- DATENBANK ---
 def get_db_connection():
-    """Holt eine freie Verbindung aus dem Pool """
+    """Holt eine freie Verbindung aus dem Pool"""
     return pool.connection()
 
 
@@ -258,7 +258,7 @@ def admin_page():
     return render_template("admin.html")
 
 
-@app.route('/dashboard')
+@app.route("/dashboard")
 def dashboard_router():
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -267,14 +267,14 @@ def dashboard_router():
 
     # Weiterleitung basierend auf deinem Bauplan
     if phase in ["START", "RUNDE_1_NICKNAME"]:
-        return render_template('dashboard_lobby.html')
+        return render_template("dashboard_lobby.html")
     elif "_TIPP" in phase:
-        return render_template('dashboard_tippen.html')
+        return render_template("dashboard_tippen.html")
     elif "_SIM" in phase:
-        return render_template('dashboard_sim.html')
+        return render_template("dashboard_sim.html")
     elif phase == "ENDE":
-        return render_template('dashboard_final.html')
-    return render_template('dashboard_lobby.html')
+        return render_template("dashboard_final.html")
+    return render_template("dashboard_lobby.html")
 
 
 # --- API ROUTES (Daten & Logik) ---
@@ -293,7 +293,7 @@ def get_participants():
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT nickname, score, created_at FROM participants ORDER BY score DESC, created_at ASC"
-                    )
+                )
                 participants = cur.fetchall()
         return jsonify({"count": len(participants), "participants": participants})
     except Exception as e:
@@ -331,6 +331,7 @@ def latest_results():
     except Exception as e:
         return jsonify({"error": f"Fehler: {str(e)}"}), 500
 
+
 @app.route("/api/dashboard/progress", methods=["GET"])
 def get_progress():
     """Gibt zurück, wie viele User in der aktuellen Tipp-Phase schon abgegeben haben"""
@@ -341,62 +342,80 @@ def get_progress():
                 # Anzahl aller Teilnehmer
                 cur.execute("SELECT COUNT(*) as total FROM participants")
                 total_users = cur.fetchone()["total"]
-                
+
                 # Anzahl der Tipps in der aktuellen Phase
-                cur.execute("SELECT COUNT(*) as submitted FROM predictions WHERE phase = %s", (current_phase,))
+                cur.execute(
+                    "SELECT COUNT(*) as submitted FROM predictions WHERE phase = %s",
+                    (current_phase,),
+                )
                 submitted_users = cur.fetchone()["submitted"]
-                
-        return jsonify({
-            "total": total_users,
-            "submitted": submitted_users,
-            "percent": int((submitted_users / total_users * 100) if total_users > 0 else 0)
-        })
+
+        return jsonify(
+            {
+                "total": total_users,
+                "submitted": submitted_users,
+                "percent": int(
+                    (submitted_users / total_users * 100) if total_users > 0 else 0
+                ),
+            }
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/dashboard/sim-results", methods=["GET"])
 def get_sim_results():
     """Holt die detaillierten Simulationsergebnisse für den Beamer-Reveal"""
     current_phase = get_phase()
-    
+
     # Wir holen uns die Rohdaten der Master-Simulation, da dort ALLE Details (Tore, etc.) liegen
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT results FROM tournament_results WHERE phase = %s", ("MASTER_SIMULATION",))
+                cur.execute(
+                    "SELECT results FROM tournament_results WHERE phase = %s",
+                    ("MASTER_SIMULATION",),
+                )
                 master_row = cur.fetchone()
-                
+
         if not master_row:
             return jsonify({"error": "Keine Simulation gefunden"}), 404
-            
+
         full_details = master_row["results"].get("full_details", {})
-        
+
         # Je nach Phase filtern wir, was der Beamer zeigen soll
         if current_phase == "RUNDE_1_SIM":
             # Gruppenphase
-            return jsonify({
-                "matches": full_details.get("group_matches", []),
-                "standings": master_row["results"].get("group_standings", {})
-            })
+            return jsonify(
+                {
+                    "matches": full_details.get("group_matches", []),
+                    "standings": master_row["results"].get("group_standings", {}),
+                }
+            )
         elif current_phase == "RUNDE_2_SIM":
             # Achtel- und Viertelfinale
-            return jsonify({
-                "r32": full_details.get("r32", []),
-                "r16": full_details.get("r16", []),
-                "qf": full_details.get("qf", [])
-            })
+            return jsonify(
+                {
+                    "r32": full_details.get("r32", []),
+                    "r16": full_details.get("r16", []),
+                    "qf": full_details.get("qf", []),
+                }
+            )
         elif current_phase == "FINALE_SIM":
             # Halbfinale und Finale
-            return jsonify({
-                "sf": full_details.get("sf", []),
-                "f": full_details.get("f", []),
-                "champion": master_row["results"].get("champion")
-            })
+            return jsonify(
+                {
+                    "sf": full_details.get("sf", []),
+                    "f": full_details.get("f", []),
+                    "champion": master_row["results"].get("champion"),
+                }
+            )
         else:
             return jsonify({"message": "Keine Sim-Daten für diese Phase"})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/user-summary", methods=["GET"])
 def user_summary():
@@ -651,8 +670,6 @@ def reset_db():
                     ("MASTER_SIMULATION", json.dumps(simulation_results), True),
                 )
             conn.commit()
-
-
 
         return jsonify({"success": True, "message": "Datenbank komplett geleert!"})
     except Exception as e:

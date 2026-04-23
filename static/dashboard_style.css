@@ -389,3 +389,615 @@ body {
 .logo-invert {
     filter: invert(100%); /* Macht aus Weiß exakt Schwarz */
 }
+
+/* ===========================
+   DASHBOARD SIMULATION STYLES
+   =========================== */
+
+/* QR-Code Mini (unten rechts - klein und fixiert) */
+.qr-mini {
+    position: fixed;
+    bottom: 100px;
+    right: 40px;
+    width: 120px;
+    background: white;
+    border-radius: 12px;
+    padding: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 40;
+    text-align: center;
+}
+
+.qr-mini img {
+    width: 100%;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.qr-mini p {
+    font-size: 0.8em;
+    color: #333;
+    margin: 0;
+    font-weight: 700;
+}
+
+/* ===========================
+   PHASE 1: GRUPPENPHASE
+   =========================== */
+
+.phase-runde-1 .main-content {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 20px;
+    overflow-y: auto;
+    margin-right: 25%;
+}
+
+/* Match Ticker (oben, horizontales Scrolling) */
+.match-ticker-wrapper {
+    width: 100%;
+    padding: 20px 0;
+    margin-bottom: 20px;
+    background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-radius: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.match-ticker {
+    display: flex;
+    gap: 15px;
+    min-width: min-content;
+    padding: 0 20px;
+}
+
+.ticker-item {
+    flex-shrink: 0;
+}
+
+.ticker-match {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: white;
+    border-radius: 8px;
+    white-space: nowrap;
+    font-size: 0.95em;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    animation: tickerSlide 1s ease-in-out;
+}
+
+@keyframes tickerSlide {
+    0% {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.ticker-team {
+    font-weight: 700;
+    color: #1a1a2e;
+    min-width: 80px;
+    text-align: right;
+}
+
+.ticker-team:first-child {
+    text-align: right;
+}
+
+.ticker-team:last-child {
+    text-align: left;
+    min-width: 80px;
+}
+
+.ticker-result {
+    font-size: 1.2em;
+    font-weight: 900;
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 4px 10px;
+    border-radius: 4px;
+    min-width: 50px;
+    text-align: center;
+}
+
+/* Groups Grid */
+.groups-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    width: 100%;
+    padding-bottom: 20px;
+}
+
+.group-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.group-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.group-title {
+    font-size: 1.2em;
+    color: #667eea;
+    margin-bottom: 12px;
+    text-align: center;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 8px;
+}
+
+.group-table {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.group-row {
+    display: grid;
+    grid-template-columns: 25px 1fr 40px 40px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    background: #f9f9f9;
+    border-radius: 6px;
+    font-size: 0.9em;
+    transition: background-color 0.3s ease, transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.group-row[data-team] {
+    animation: rowSlideIn 0.4s ease;
+}
+
+@keyframes rowSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.group-row:hover {
+    background: #f0f0f0;
+    transform: translateX(4px);
+}
+
+.group-rank {
+    font-weight: 900;
+    color: #667eea;
+    text-align: center;
+}
+
+.group-name {
+    font-weight: 700;
+    color: #1a1a2e;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.group-stat {
+    text-align: center;
+    color: #555;
+    font-size: 0.85em;
+}
+
+/* ===========================
+   PHASE 2: K.O.-RUNDEN
+   =========================== */
+
+.phase-runde-2 .main-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 25%;
+}
+
+.ko-rounds-container {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    gap: 30px;
+    padding: 40px;
+    animation: koFadeIn 0.6s ease;
+}
+
+@keyframes koFadeIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.ko-grid-16 {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    aspect-ratio: 4 / 4;
+}
+
+.ko-grid-8 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    aspect-ratio: 1 / 2;
+    transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.ko-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    aspect-ratio: 1 / 1;
+    transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.ko-rounds-container.zoom-out {
+    transform: scale(0.9);
+    opacity: 0.7;
+}
+
+/* Match Cards */
+.match-card {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.08) 100%);
+    border: 2px solid rgba(102, 126, 234, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+.match-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    border-color: rgba(102, 126, 234, 0.6);
+}
+
+.match-header {
+    font-size: 0.85em;
+    color: #667eea;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.match-teams {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.match-team {
+    font-size: 0.95em;
+    font-weight: 700;
+    color: #1a1a2e;
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.match-result {
+    font-size: 2em;
+    font-weight: 900;
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.2);
+    padding: 10px 20px;
+    border-radius: 8px;
+    min-width: 80px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.match-result.result-pop {
+    animation: resultPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes resultPopIn {
+    0% {
+        transform: scale(0.6) rotateZ(-5deg);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.15) rotateZ(5deg);
+    }
+    100% {
+        transform: scale(1) rotateZ(0);
+        opacity: 1;
+    }
+}
+
+/* ===========================
+   PHASE 3: HALBFINALE & FINALE
+   =========================== */
+
+.phase-finale .main-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-right: 25%;
+    gap: 60px;
+}
+
+.final-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 40px;
+    width: 100%;
+    max-width: 1000px;
+}
+
+.final-card {
+    min-height: 280px;
+    transform: scale(1.3);
+    box-shadow: 0 15px 50px rgba(102, 126, 234, 0.3) !important;
+}
+
+/* Timer Display */
+.timer-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    padding: 30px 50px;
+    box-shadow: 0 15px 50px rgba(102, 126, 234, 0.3);
+    position: relative;
+    z-index: 20;
+}
+
+.timer-minutes,
+.timer-seconds {
+    font-size: 5em;
+    font-weight: 900;
+    color: white;
+    line-height: 1;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    animation: timerPulse 1s ease infinite;
+}
+
+.timer-separator {
+    font-size: 4em;
+    font-weight: 900;
+    color: white;
+    margin: 0 15px;
+    opacity: 0.8;
+    animation: separatorBlink 1s ease infinite;
+}
+
+@keyframes timerPulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+@keyframes separatorBlink {
+    0%, 100% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}
+
+.timer-label {
+    position: absolute;
+    bottom: -40px;
+    font-size: 1.1em;
+    color: #667eea;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+/* ===========================
+   LEADERBOARD (ALLE PHASEN)
+   =========================== */
+
+.leaderboard-container {
+    position: fixed;
+    right: 0;
+    top: 80px;
+    width: 25%;
+    height: calc(100% - 80px - 70px);
+    background: white;
+    border-left: 3px solid #667eea;
+    display: flex;
+    flex-direction: column;
+    z-index: 35;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.leaderboard-title {
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-align: center;
+    font-size: 1.2em;
+    letter-spacing: 1px;
+    margin: 0;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.leaderboard-table {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.leaderboard-table::-webkit-scrollbar {
+    width: 6px;
+}
+
+.leaderboard-table::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.leaderboard-table::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 3px;
+}
+
+.leaderboard-entry {
+    display: grid;
+    grid-template-columns: 40px 1fr 70px;
+    gap: 10px;
+    align-items: center;
+    padding: 12px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    font-size: 0.9em;
+    transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    border-left: 4px solid transparent;
+}
+
+.leaderboard-entry:first-child {
+    border-left-color: #ffd700;
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.1) 0%, transparent 100%);
+}
+
+.leaderboard-entry:nth-child(2) {
+    border-left-color: #c0c0c0;
+    background: linear-gradient(90deg, rgba(192, 192, 192, 0.1) 0%, transparent 100%);
+}
+
+.leaderboard-entry:nth-child(3) {
+    border-left-color: #cd7f32;
+    background: linear-gradient(90deg, rgba(205, 127, 50, 0.1) 0%, transparent 100%);
+}
+
+.lb-rank {
+    font-weight: 900;
+    color: #667eea;
+    text-align: center;
+    font-size: 1.1em;
+}
+
+.lb-name {
+    font-weight: 700;
+    color: #1a1a2e;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lb-score {
+    font-weight: 700;
+    color: #555;
+    text-align: right;
+    font-size: 0.9em;
+}
+
+/* ===========================
+   RESPONSIVE ADJUSTMENTS
+   =========================== */
+
+@media (max-width: 1920px) {
+    .phase-runde-2 .main-content,
+    .phase-finale .main-content,
+    .phase-runde-1 .main-content {
+        margin-right: 25%;
+    }
+
+    .timer-display {
+        padding: 25px 40px;
+    }
+
+    .timer-minutes,
+    .timer-seconds {
+        font-size: 4em;
+    }
+
+    .timer-separator {
+        font-size: 3.2em;
+        margin: 0 10px;
+    }
+}
+
+@media (max-width: 1600px) {
+    .leaderboard-container {
+        width: 28%;
+    }
+
+    .match-card {
+        padding: 15px;
+    }
+
+    .groups-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+    }
+}
+
+/* ===========================
+   ERGÄNZUNGEN FÜR SIMULATION
+   =========================== */
+
+/* Stellt sicher, dass die Phasen-Container den vollen Platz im Main-Content nutzen */
+.phase-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Zentriert den Inhalt in Phase 2 und 3 */
+.phase-2-content, .phase-3-content {
+    align-items: center;
+    justify-content: center;
+}
+
+/* "Leerer" Match-Zustand (0-0), bevor das Ergebnis aufploppt */
+.match-result[data-empty="true"] {
+    background: rgba(0, 0, 0, 0.05);
+    color: rgba(102, 126, 234, 0.3); /* Leicht transparentes Lila/Blau */
+    font-weight: 400;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Verhindert Flackern/Überlappen während des Grid-Zooms in Runde 2 */
+.ko-rounds-container {
+    transform-origin: center center;
+    will-change: transform, grid-template-columns;
+}
+
+/* Weicherer Übergang für die Karten beim Neuanordnen (16 -> 8 -> 4) */
+.match-card {
+    will-change: transform;
+}
+
+/* Gewinner-Hervorhebung (Optional, falls später im JS die Klasse .winner gesetzt wird) */
+.match-team.winner {
+    font-weight: 900;
+    color: #28a745;
+}

@@ -19,7 +19,7 @@
     <div class="main-content">
         <div class="qr-section">
             <div class="qr-container" id="qr-main-container">
-                <img src="/static/qr-code.png" id="qr-main" alt="QR-Code zum Scannen">
+                <img src="/static/qrcode.png" id="qr-main" alt="QR-Code zum Scannen">
                 <div class="qr-text" id="qr-text">Scannen & Beitreten</div>
             </div>
         </div>
@@ -70,7 +70,7 @@
             }
         }
 
-        // Poll participants every 2 seconds
+        // Poll participants every 1.5 seconds
         async function updateParticipants() {
             try {
                 const res = await fetch('/api/participants');
@@ -117,7 +117,7 @@
 
         // Set up polling intervals
         setInterval(checkPhase, 3000);
-        setInterval(updateParticipants, 2000);
+        setInterval(updateParticipants, 1500);
     </script>
 </body>
 </html>

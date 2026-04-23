@@ -758,52 +758,60 @@ body {
 }
 
 .final-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 50px; /* Abstand zwischen Halbfinal-Karten */
     width: 100%;
-    max-width: 1000px;
+    max-width: 1400px;
 }
 
+/* Halbfinal-Karten groß */
+.sf-card {
+    flex: 1;
+    transform: scale(1.2) !important;
+    padding: 25px;
+}
+
+/* Final-Karte noch größer */
 .final-card {
-    min-height: 280px;
-    transform: scale(1.3);
-    box-shadow: 0 15px 50px rgba(102, 126, 234, 0.3) !important;
+    flex: 1;
+    max-width: 800px;
+    transform: scale(1.5) !important;
+    padding: 30px;
+}
+
+/* Schriften in Phase 3 Spielen anpassen */
+.sf-card .match-team, .final-card .match-team {
+    font-size: 1.4em;
+}
+
+.sf-card .match-result, .final-card .match-result {
+    font-size: 2.5em;
+    padding: 10px 20px;
 }
 
 /* Timer Display */
 .timer-display {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 20px;
-    padding: 30px 50px;
-    box-shadow: 0 15px 50px rgba(102, 126, 234, 0.3);
-    position: relative;
-    z-index: 20;
+    padding: 15px 30px;
+    margin-bottom: 50px; /* Abstand zu den Spielen */
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
 }
 
-.timer-minutes,
-.timer-seconds {
-    font-size: 5em;
-    font-weight: 900;
-    color: white;
-    line-height: 1;
-    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    animation: timerPulse 1s ease infinite;
+.timer-minutes, .timer-seconds {
+    font-size: 3.5em !important; /* Vorher riesig */
 }
 
 .timer-separator {
-    font-size: 4em;
-    font-weight: 900;
-    color: white;
+    font-size: 3em !important;
     margin: 0 15px;
-    opacity: 0.8;
-    animation: separatorBlink 1s ease infinite;
 }
 
+.timer-label {
+    bottom: -30px;
+    font-size: 0.9em;
+}
 @keyframes timerPulse {
     0%, 100% {
         opacity: 1;

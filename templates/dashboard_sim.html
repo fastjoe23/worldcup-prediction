@@ -44,14 +44,15 @@
 
         <!-- Phase 3: Halbfinale & Finale -->
         <div class="phase-content phase-3-content" id="phase-3-content" style="display: none;">
-            <div class="final-container" id="final-container">
-                <!-- Finale-Cards werden dynamisch erstellt -->
-            </div>
+            
             <div class="timer-display" id="timer-display">
                 <div class="timer-minutes" id="timer-minutes">00</div>
                 <div class="timer-separator">:</div>
                 <div class="timer-seconds" id="timer-seconds">00</div>
                 <div class="timer-label">Minuten</div>
+            </div>
+            <div class="final-container" id="final-container">
+                <!-- Finale-Cards werden dynamisch erstellt -->
             </div>
         </div>
     </div>
@@ -494,67 +495,100 @@
             const container = document.getElementById('final-container');
             const titleElement = document.getElementById('current-round-title');
 
-            if (semifinals.length > 0) {
+            // 1. HALBFINALE (Beide Spiele gleichzeitig)
+            if (semifinals.length === 2) {
                 if (titleElement) titleElement.textContent = "Halbfinale";
-                for (const match of semifinals) {
-                    container.innerHTML = '';
-                    const card = createMatchCard(match, 0, true);
-                    container.appendChild(card);
+                container.innerHTML = '';
+                
+                const card1 = createMatchCard(semifinals[0], 0, true);
+                const card2 = createMatchCard(semifinals[1], 1, true);
+                
+                card1.classList.add('sf-card');
+                card2.classList.add('sf-card');
+                
+                container.appendChild(card1);
+                container.appendChild(card2);
 
-                    await runFinalMatch(match, card);
-                    await sleep(2000);
-                }
+                // Startet die gleichzeitige Simulation für das Array an Spielen
+                await runMatchesSimultaneously([
+                    { data: semifinals[0], card: card1 },
+                    { data: semifinals[1], card: card2 }
+                ]);
+                
+                await sleep(3000); // Pause vor dem Finale
             }
 
+            // 2. FINALE (Ein Spiel)
             if (finals.length > 0) {
                 if (titleElement) titleElement.textContent = "FINALE";
                 container.innerHTML = '';
+                
                 const finalCard = createMatchCard(finals[0], 0, true);
                 finalCard.classList.add('final-card');
                 container.appendChild(finalCard);
 
-                await runFinalMatch(finals[0], finalCard);
+                await runMatchesSimultaneously([
+                    { data: finals[0], card: finalCard }
+                ]);
             }
         }
 
-        async function runFinalMatch(match, cardElement) {
-            const timerDisplay = document.getElementById('timer-display');
-            const resultEl = cardElement.querySelector('.match-result');
-            resultEl.dataset.empty = "false";
+        async function runMatchesSimultaneously(matchObjects) {
+            // Bereite die Ziele (Tore & Minuten) für alle übergebenen Spiele vor
+            matchObjects.forEach(mo => {
+                const resultEl = mo.card.querySelector('.match-result');
+                resultEl.dataset.empty = "false";
+                
+                const [targetHomeStr = '0', targetAwayStr = '0'] = (mo.data.score || '0:0').split(':');
+                mo.targetHome = parseInt(targetHomeStr, 10);
+                mo.targetAway = parseInt(targetAwayStr, 10);
+                
+                mo.goals = [];
+                // Zufällige Minutenverteilung
+                for (let i = 0; i < mo.targetHome; i++) mo.goals.push({ m: Math.floor(Math.random() * 88) + 1, isHome: true });
+                for (let i = 0; i < mo.targetAway; i++) mo.goals.push({ m: Math.floor(Math.random() * 88) + 1, isHome: false });
+                mo.goals.sort((a, b) => a.m - b.m); // Chronologisch sortieren
+                
+                mo.currentHome = 0;
+                mo.currentAway = 0;
+                mo.goalIndex = 0;
+            });
 
-            const [targetHomeGoalsStr = '0', targetAwayGoalsStr = '0'] = (match.score || '0:0').split(':');
-            const targetHomeGoals = parseInt(targetHomeGoalsStr, 10);
-            const targetAwayGoals = parseInt(targetAwayGoalsStr, 10);
-
-            const goalMinutes = [];
-            for (let i = 0; i < targetHomeGoals; i++) goalMinutes.push({ minute: Math.floor(Math.random() * 88) + 1, isHome: true });
-            for (let i = 0; i < targetAwayGoals; i++) goalMinutes.push({ minute: Math.floor(Math.random() * 88) + 1, isHome: false });
-            goalMinutes.sort((a, b) => a.minute - b.minute);
-
-            let homeGoals = 0;
-            let awayGoals = 0;
-            let goalIndex = 0;
-
+            // Eine globale Zeitschleife von 0 bis 90 Minuten
             for (let minute = 0; minute <= 90; minute++) {
                 updateTimer(minute);
+                
+                let goalScoredInThisMinute = false;
 
-                if (goalIndex < goalMinutes.length && goalMinutes[goalIndex].minute === minute) {
-                    if (goalMinutes[goalIndex].isHome) homeGoals++;
-                    else awayGoals++;
-                    
-                    resultEl.innerHTML = `${homeGoals}-${awayGoals}`;
-                    resultEl.classList.remove('result-pop');
-                    void resultEl.offsetWidth; // Force reflow to restart animation
-                    resultEl.classList.add('result-pop');
-                    
-                    await sleep(300);
-                    goalIndex++;
-                }
-                await sleep(400); 
+                // Prüfe für jedes Spiel, ob in dieser Minute ein Tor fällt
+                matchObjects.forEach(mo => {
+                    while (mo.goalIndex < mo.goals.length && mo.goals[mo.goalIndex].m === minute) {
+                        if (mo.goals[mo.goalIndex].isHome) mo.currentHome++;
+                        else mo.currentAway++;
+                        
+                        const resultEl = mo.card.querySelector('.match-result');
+                        resultEl.innerHTML = `${mo.currentHome}-${mo.currentAway}`;
+                        
+                        // Tor-Aufpopp-Animation neustarten
+                        resultEl.classList.remove('result-pop');
+                        void resultEl.offsetWidth; 
+                        resultEl.classList.add('result-pop');
+                        
+                        mo.goalIndex++;
+                        goalScoredInThisMinute = true;
+                    }
+                });
+                
+                // Wenn ein Tor fiel, kurzer Spannungs-Halt, sonst tickt die Uhr flüssig weiter
+                if (goalScoredInThisMinute) await sleep(400); 
+                await sleep(140); // Generelle Ticker-Geschwindigkeit (150ms pro Ingame-Minute)
             }
             
-            // Ensure final score is accurate in case of skipped minutes
-            resultEl.innerHTML = `${targetHomeGoals}-${targetAwayGoals}`;
+            // Sicherstellen, dass das End-Ergebnis exakt stimmt (falls Minuten übersprungen wurden)
+            matchObjects.forEach(mo => {
+                const resultEl = mo.card.querySelector('.match-result');
+                resultEl.innerHTML = `${mo.targetHome}-${mo.targetAway}`;
+            });
             updateTimer(90);
         }
 

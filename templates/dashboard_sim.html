@@ -12,6 +12,7 @@
         <div class="logo-left">
             <img src="/static/DHBW_d_S_46mm_4c-1920w.webp" alt="DHBW Logo" class="header-logo">
         </div>
+        <div id="current-round-title" class="round-display">GRUPPENPHASE</div>
         <div class="logo-right">
             <img src="/static/vers_logo.png" alt="VersLeipzig Logo" class="header-logo">
         </div>
@@ -396,16 +397,20 @@
 
         async function runKORoundTimeline(r32Matches, r16Matches, qfMatches) {
             const container = document.getElementById('ko-rounds-container');
+            const titleElement = document.getElementById('current-round-title');
 
             if (r32Matches.length > 0) {
+                if (titleElement) titleElement.textContent = "Sechzehntelfinale";
                 await runKOStage(container, r32Matches, 16, 'stage1');
                 await sleep(3000);
             }
             if (r16Matches.length > 0) {
+                if (titleElement) titleElement.textContent = "Achtelfinale";
                 await runKOStage(container, r16Matches, 8, 'stage2');
                 await sleep(3000);
             }
             if (qfMatches.length > 0) {
+                if (titleElement) titleElement.textContent = "Viertelfinale";
                 await runKOStage(container, qfMatches, 4, 'stage3');
             }
         }
@@ -487,17 +492,22 @@
 
         async function runFinalTimeline(semifinals, finals) {
             const container = document.getElementById('final-container');
+            const titleElement = document.getElementById('current-round-title');
 
-            for (const match of semifinals) {
-                container.innerHTML = '';
-                const card = createMatchCard(match, 0, true);
-                container.appendChild(card);
+            if (semifinals.length > 0) {
+                if (titleElement) titleElement.textContent = "Halbfinale";
+                for (const match of semifinals) {
+                    container.innerHTML = '';
+                    const card = createMatchCard(match, 0, true);
+                    container.appendChild(card);
 
-                await runFinalMatch(match, card);
-                await sleep(2000);
+                    await runFinalMatch(match, card);
+                    await sleep(2000);
+                }
             }
 
             if (finals.length > 0) {
+                if (titleElement) titleElement.textContent = "FINALE";
                 container.innerHTML = '';
                 const finalCard = createMatchCard(finals[0], 0, true);
                 finalCard.classList.add('final-card');

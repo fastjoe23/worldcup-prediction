@@ -362,53 +362,58 @@ def get_progress():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/dashboard/tipping-trends", methods=["GET"])
 def get_tipping_trends():
     phase = get_phase()
-    
+
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT selections FROM predictions WHERE phase = %s", (phase,))
+                cur.execute(
+                    "SELECT selections FROM predictions WHERE phase = %s", (phase,)
+                )
                 all_picks = cur.fetchall()
-                
+
         # Auszählung je nach Phase
         if "RUNDE_1" in phase:
             # Wir bereiten ein Dictionary mit den Keys "A" bis "L" vor
-            groups = {chr(65+i): {} for i in range(12)} 
-            
+            groups = {chr(65 + i): {} for i in range(12)}
+
             for p in all_picks:
                 selections = p.get("selections", {})
                 for group_name, team in selections.items():
                     # Wir filtern das Wort "Gruppe " heraus, damit aus "Gruppe A" nur "A" wird
                     group_letter = group_name.replace("Gruppe ", "").strip()
-                    
+
                     # Sicherheitscheck, ob die Gruppe existiert
                     if group_letter in groups:
-                        groups[group_letter][team] = groups[group_letter].get(team, 0) + 1
-                        
+                        groups[group_letter][team] = (
+                            groups[group_letter].get(team, 0) + 1
+                        )
+
             return jsonify({"groups": groups})
-            
+
         else:
             # Für Runde 2 (Balkendiagramm) und Finale (Tortendiagramm)
             counts = {}
             for p in all_picks:
                 selections = p.get("selections")
-                
+
                 if not selections:
                     continue
-                    
-                # In Runde 2 ist es eine Liste, im Finale nur ein String.
-                # Wir machen es einheitlich zu einer Liste, um sauber iterieren zu können.
+
                 picks = selections if isinstance(selections, list) else [selections]
-                
+
                 for team in picks:
-                    counts[team] = counts[team].get(team, 0) + 1
-                    
+
+                    counts[team] = counts.get(team, 0) + 1
+
             return jsonify({"counts": counts})
-            
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/dashboard/sim-results", methods=["GET"])
 def get_sim_results():

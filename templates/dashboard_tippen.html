@@ -68,6 +68,11 @@
                 const stateRes = await fetch('/api/state');
                 if (!stateRes.ok) return;
                 const state = await stateRes.json();
+
+                if (!state.phase.endsWith("_TIPP")) {
+                    window.location.href = '/dashboard';
+                    return;
+                }
                 
                 if (currentPhase !== state.phase) {
                     currentPhase = state.phase;

@@ -624,6 +624,9 @@
                     await initPhase2();
                 } else if (currentPhase === "FINALE_SIM") {
                     await initPhase3();
+                } else {
+                    // Any other phase: redirect to dashboard
+                    window.location.href = '/dashboard';
                 }
 
                 // Setup Managed Intervals

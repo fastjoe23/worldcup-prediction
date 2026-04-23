@@ -17,6 +17,7 @@ load_dotenv()
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
+app.config["PHASE_CACHE"] = None
 
 # --- SESSION CONFIGURATION ---
 app.config["SESSION_PERMANENT"] = True
@@ -37,6 +38,8 @@ Talisman(
         "style-src": ["'self'", "'unsafe-inline'"],  # Erlaubt den <style> Block
     },
 )
+
+
 
 # --- KONFIGURATION ---
 EVENT_ACCESS_CODE = os.getenv("EVENT_ACCESS_CODE", "WM2026")
@@ -203,6 +206,10 @@ def init_db():
 
 # Hilfsfunktionen für den Status
 def get_phase():
+    # Cache verwenden, um DB-Zugriffe zu minimieren (wird bei Phase-Änderung zurückgesetzt)
+    if app.config["PHASE_CACHE"] is not None:
+        return app.config["PHASE_CACHE"]
+
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT current_phase FROM system_state WHERE id = 1")
@@ -210,12 +217,16 @@ def get_phase():
 
 
 def set_phase(new_phase):
+
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE system_state SET current_phase = %s WHERE id = 1", (new_phase,)
             )
         conn.commit()
+
+    # Cache nicht vergessen
+    app.config["PHASE_CACHE"] = new_phase
 
 
 # Initialize database on module import (works with Gunicorn and local development)
@@ -432,8 +443,11 @@ def submit_nickname():
         if data.get("access_token") != EVENT_ACCESS_CODE:
             return jsonify({"error": "Nicht autorisiert."}), 403
 
+    # aktuelle Phase prüfen
+    current_phase = get_phase()
+
     # Prüfen, ob wir in der Nickname-Phase sind
-    if get_phase() != "RUNDE_1_NICKNAME":
+    if current_phase != "RUNDE_1_NICKNAME":
         return jsonify({"error": "Nickname-Phase ist nicht aktiv!"}), 403
 
     nickname = data.get("nickname")
@@ -480,8 +494,10 @@ def submit_selections():
         if data.get("access_token") != EVENT_ACCESS_CODE:
             return jsonify({"error": "Nicht autorisiert."}), 403
 
+    current_phase = get_phase()
+
     # Prüfen, ob wir in einer Tipp-Phase sind (RUNDE_1_GRUPPEN_TIPP, RUNDE_2_TIPP, FINALE_TIPP)
-    if not get_phase().endswith("_TIPP"):
+    if not current_phase.endswith("_TIPP"):
         return jsonify({"error": "Tipps sind aktuell nicht möglich!"}), 403
 
     # Nickname aus Request-Body auslesen (nicht aus Session)
@@ -511,7 +527,7 @@ def submit_selections():
                 )
                 cur.execute(
                     "INSERT INTO predictions (nickname, phase, selections) VALUES (%s, %s, %s)",
-                    (nickname, get_phase(), json.dumps(selections)),
+                    (nickname, current_phase, json.dumps(selections)),
                 )
             conn.commit()
         return jsonify({"success": True, "message": "Tipps gespeichert!"})

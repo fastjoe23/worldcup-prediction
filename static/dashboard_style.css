@@ -617,104 +617,102 @@ body {
 
 .ko-rounds-container {
     width: 100%;
-    height: 100%;
+    /* Wir lassen die feste Höhe weg, damit sich das Grid an den Inhalt anpasst */
     display: grid;
-    gap: 30px;
-    padding: 40px;
+    gap: 15px; /* Kleinerer Abstand, damit alles auf den Screen passt */
+    padding: 20px;
     animation: koFadeIn 0.6s ease;
+    align-content: center;
 }
 
 @keyframes koFadeIn {
-    0% {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
+    0% { opacity: 0; transform: scale(0.95); }
+    100% { opacity: 1; transform: scale(1); }
 }
 
+/* 16 Spiele = 4 Spalten x 4 Reihen */
 .ko-grid-16 {
     grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(4, 1fr);
-    aspect-ratio: 4 / 4;
+    grid-template-rows: repeat(4, auto);
 }
 
+/* 8 Spiele = 4 Spalten x 2 Reihen (besser für breite Beamer-Bildschirme) */
 .ko-grid-8 {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(4, 1fr);
-    aspect-ratio: 1 / 2;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, auto);
     transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* 4 Spiele = 2 Spalten x 2 Reihen */
 .ko-grid-4 {
     grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    aspect-ratio: 1 / 1;
+    grid-template-rows: repeat(2, auto);
     transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .ko-rounds-container.zoom-out {
     transform: scale(0.9);
-    opacity: 0.7;
+    opacity: 0; /* Leichtes Ausblenden beim Wechsel der Runden */
 }
 
-/* Match Cards */
+/* Match Cards - Kompakteres Design */
 .match-card {
     background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.08) 100%);
     border: 2px solid rgba(102, 126, 234, 0.3);
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: 10px;
+    padding: 12px 15px; /* Weniger Padding */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 15px;
+    gap: 8px; /* Weniger Abstand zwischen Header und Teams */
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.15);
 }
 
 .match-card:hover {
     transform: scale(1.05);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
     border-color: rgba(102, 126, 234, 0.6);
 }
 
-.match-header {
-    font-size: 0.85em;
-    color: #667eea;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
+/* HORIZONTALES LAYOUT FÜR TEAMS UND ERGEBNIS */
 .match-teams {
     display: flex;
-    flex-direction: column;
+    flex-direction: row; /* Teams stehen jetzt NEBENEINANDER */
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
     width: 100%;
+    gap: 10px;
 }
 
 .match-team {
+    flex: 1; /* Beide Teams nehmen gleich viel Platz ein */
     font-size: 0.95em;
     font-weight: 700;
     color: #1a1a2e;
-    text-align: center;
-    width: 100%;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+/* Linkes Team rechtsbündig an die Box, rechtes Team linksbündig */
+.match-team:first-child {
+    text-align: right;
+}
+.match-team:last-child {
+    text-align: left;
+}
+
 .match-result {
-    font-size: 2em;
+    flex: 0 0 auto; /* Das Ergebnis in der Mitte behält seine feste Größe */
+    font-size: 1.5em; /* Etwas kleiner als vorher, damit es ins Grid passt */
     font-weight: 900;
     color: #667eea;
     background: rgba(102, 126, 234, 0.2);
-    padding: 10px 20px;
-    border-radius: 8px;
-    min-width: 80px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    min-width: 60px;
     text-align: center;
     transition: all 0.2s ease;
 }
@@ -724,19 +722,10 @@ body {
 }
 
 @keyframes resultPopIn {
-    0% {
-        transform: scale(0.6) rotateZ(-5deg);
-        opacity: 0;
-    }
-    50% {
-        transform: scale(1.15) rotateZ(5deg);
-    }
-    100% {
-        transform: scale(1) rotateZ(0);
-        opacity: 1;
-    }
+    0% { transform: scale(0.6) rotateZ(-5deg); opacity: 0; }
+    50% { transform: scale(1.15) rotateZ(5deg); }
+    100% { transform: scale(1) rotateZ(0); opacity: 1; }
 }
-
 /* ===========================
    PHASE 3: HALBFINALE & FINALE
    =========================== */

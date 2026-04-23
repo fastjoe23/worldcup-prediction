@@ -12,7 +12,7 @@
         <div class="logo-left">
             <img src="/static/DHBW_d_S_46mm_4c-1920w.webp" alt="DHBW Logo" class="header-logo">
         </div>
-        <div class="logo-right logo-invert">
+        <div class="logo-right">
             <img src="/static/vers_logo.png" alt="VersLeipzig Logo" class="header-logo">
         </div>
     </header>
@@ -456,7 +456,6 @@
             const t2 = match.team2 || match.away || '—';
 
             card.innerHTML = `
-                <div class="match-header">${match.round || 'K.O.'}</div>
                 <div class="match-teams">
                     <div class="match-team">${t1}</div>
                     <div class="match-result" ${showEmpty ? 'data-empty="true"' : 'data-empty="false"'}>

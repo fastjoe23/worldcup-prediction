@@ -442,6 +442,9 @@ def get_sim_results():
                 {
                     "matches": full_details.get("group_matches", []),
                     "standings": master_row["results"].get("group_standings", {}),
+                    "r32": full_details.get("r32", []),
+                    "r16": full_details.get("r16", []),
+                    "qf": full_details.get("qf", []),
                 }
             )
         elif current_phase == "RUNDE_2_SIM":

@@ -70,6 +70,11 @@
         <img src="/static/qrcode.png" alt="QR-Code">
     </div>
 
+    <!-- Phase Transition Overlay -->
+    <div class="phase-transition-overlay" id="phase-transition-overlay" style="display: none;">
+        <div class="transition-message" id="transition-message"></div>
+    </div>
+
     <!-- Sponsoren-Banner (unten) -->
     <footer class="sponsors-banner">
         <span class="sponsor-text">Partner:</span>
@@ -182,6 +187,25 @@
         }
 
         // ===========================
+        // PHASE TRANSITION OVERLAY
+        // ===========================
+        async function showTransitionMessage(message, duration = 3000) {
+            const overlay = document.getElementById('phase-transition-overlay');
+            const messageEl = document.getElementById('transition-message');
+            
+            messageEl.textContent = message;
+            overlay.style.display = 'flex';
+            
+            await sleep(duration);
+            
+            overlay.style.animation = 'fadeOutScale 0.6s ease-out forwards';
+            await sleep(600);
+            
+            overlay.style.animation = '';
+            overlay.style.display = 'none';
+        }
+
+        // ===========================
         // PHASE 1: GRUPPENPHASE
         // ===========================
         let liveGroupStats = {};
@@ -280,7 +304,49 @@
                 }
             });
             await sleep(500); 
-            await revealLeaderboard(); // Leaderboard erst am Ende der Gruppenphase enthüllen
+            
+            // Leaderboard am Ende der Gruppenphase enthüllen
+            await revealLeaderboard();
+            
+            // 8 Sekunden Pause zum Feiern
+            await sleep(8000);
+
+            // Ankündigung: Phase wechsel
+            await showTransitionMessage('Die Gruppenphase ist beendet!\nWir starten jetzt die K.O.-Runde...', 3000);
+            
+            // View wechseln: Gruppen verstecken, K.O.-Runden zeigen
+            document.getElementById('phase-1-content').style.display = 'none';
+            document.getElementById('phase-2-content').style.display = 'block';
+            document.body.className = 'phase-sim phase-runde-2';
+            document.getElementById('current-round-title').textContent = 'K.O.-RUNDEN';
+            
+            await sleep(500);
+
+            // K.O.-Simulation: R32 und R16
+            const data = masterData || await fetchSimData();
+            if (data) {
+                const r32Matches = data.r32 || [];
+                const r16Matches = data.r16 || [];
+                const qfMatches = data.qf || [];
+                
+                const container = document.getElementById('ko-rounds-container');
+                const titleElement = document.getElementById('current-round-title');
+                
+                if (r32Matches.length > 0) {
+                    if (titleElement) titleElement.textContent = "Sechzehntelfinale";
+                    await runKOStage(container, r32Matches, 16, 'stage1');
+                    await sleep(3000);
+                }
+                if (r16Matches.length > 0) {
+                    if (titleElement) titleElement.textContent = "Achtelfinale";
+                    await runKOStage(container, r16Matches, 8, 'stage2');
+                    await sleep(3000);
+                }
+                
+                // Viertelfinal-Paarungen (OHNE Tore)
+                if (titleElement) titleElement.textContent = "Viertelfinale";
+                await showQuarterFinalPairings(container, qfMatches);
+            }
         }
 
         // Optimiert: Nutzt textContent statt innerHTML falls Nodes bereits existieren
@@ -338,44 +404,27 @@
         }
 
         // ===========================
-        // PHASE 2: K.O.-RUNDEN
+        // PHASE 2: K.O.-RUNDEN (VIERTELFINALE)
         // ===========================
         async function initPhase2() {
-            console.log("Initializing Phase 2 - K.O.-Runden");
+            console.log("Initializing Phase 2 - Viertelfinale");
             document.body.className = 'phase-sim phase-runde-2';
             document.getElementById('phase-1-content').style.display = 'none';
             document.getElementById('phase-2-content').style.display = 'block';
             document.getElementById('phase-3-content').style.display = 'none';
+            document.getElementById('current-round-title').textContent = 'Viertelfinale';
 
             const data = masterData || await fetchSimData();
             if (!data) return;
 
-            const r32Matches = data.r32 || [];
-            const r16Matches = data.r16 || [];
             const qfMatches = data.qf || [];
-            await runKORoundTimeline(r32Matches, r16Matches, qfMatches);
-        }
-
-        async function runKORoundTimeline(r32Matches, r16Matches, qfMatches) {
             const container = document.getElementById('ko-rounds-container');
-            const titleElement = document.getElementById('current-round-title');
             
-            if (r32Matches.length > 0) {
-                if (titleElement) titleElement.textContent = "Sechzehntelfinale";
-                await runKOStage(container, r32Matches, 16, 'stage1');
-                await sleep(3000);
-            }
-            if (r16Matches.length > 0) {
-                if (titleElement) titleElement.textContent = "Achtelfinale";
-                await runKOStage(container, r16Matches, 8, 'stage2');
-                await sleep(3000);
-            }
-            if (qfMatches.length > 0) {
-                if (titleElement) titleElement.textContent = "Viertelfinale";
-                await runKOStage(container, qfMatches, 4, 'stage3');
-            }
-            // und noch das Leaderboard 
-            await sleep(500); 
+            // Simuliere das Viertelfinale mit Toren
+            await runKOStage(container, qfMatches, 4, 'stage3');
+            
+            // Leaderboard aktualisieren
+            await sleep(1000);
             await revealLeaderboard();
         }
 
@@ -416,7 +465,7 @@
         function createMatchCard(match, index, showEmpty = false) {
             const card = document.createElement('div');
             card.className = 'match-card';
-            let displayScore = '0-0';
+            let displayScore = showEmpty ? 'VS' : '0-0';
             if (!showEmpty && match.score) {
                 displayScore = match.score;
             }
@@ -434,6 +483,22 @@
                 </div>
             `;
             return card;
+        }
+
+        // ===========================
+        // VIERTELFINAL-PAARUNGEN (Ohne Tore-Simulation)
+        // ===========================
+        async function showQuarterFinalPairings(container, qfMatches) {
+            container.innerHTML = '';
+            container.className = `ko-grid ko-grid-4 stage3`;
+
+            qfMatches.forEach((match, idx) => {
+                const card = createMatchCard(match, idx, true);
+                container.appendChild(card);
+            });
+
+            // Sanfte Einblendung
+            await sleep(500);
         }
 
         // ===========================

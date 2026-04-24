@@ -465,7 +465,7 @@
         function createMatchCard(match, index, showEmpty = false) {
             const card = document.createElement('div');
             card.className = 'match-card';
-            let displayScore = showEmpty ? 'VS' : '0-0';
+            let displayScore = showEmpty ? '0-0' : '0-0';
             if (!showEmpty && match.score) {
                 displayScore = match.score;
             }
@@ -510,6 +510,7 @@
             document.getElementById('phase-1-content').style.display = 'none';
             document.getElementById('phase-2-content').style.display = 'none';
             document.getElementById('phase-3-content').style.display = 'block';
+            document.getElementById('current-round-title').textContent = 'Halbfinale';
 
             const data = masterData || await fetchSimData();
             if (!data) return;

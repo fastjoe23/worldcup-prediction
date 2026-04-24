@@ -59,7 +59,7 @@
 
     <!-- Leaderboard (immer sichtbar) -->
     <aside class="leaderboard-container" id="leaderboard-container">
-        <h3 class="leaderboard-title">🏆 TOP 10</h3>
+        <h3 class="leaderboard-title">🏆 TOP 25</h3>
         <div class="leaderboard-table" id="leaderboard-table">
             <!-- Leaderboard-Einträge werden dynamisch eingefügt -->
         </div>
@@ -85,11 +85,9 @@
         let currentPhase = null;
         let masterData = null;
         let leaderboardData = [];
-        let previousLeaderboardOrder = [];
         const PHASE_1_GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
         
         let phaseInterval = null;
-        let leaderboardInterval = null;
 
         // ===========================
         // HELPER FUNCTIONS
@@ -119,7 +117,6 @@
                 if (currentPhase !== null && currentPhase !== newPhase) {
                     // Sauberes Aufräumen vor dem Reload (verhindert Memory Leaks)
                     if (phaseInterval) clearInterval(phaseInterval);
-                    if (leaderboardInterval) clearInterval(leaderboardInterval);
                     window.location.reload();
                 }
             } catch (e) {
@@ -141,109 +138,47 @@
         }
 
         // ===========================
-        // NEUE LEADERBOARD LOGIK
+        // LEADERBOARD AM ENDE DER SIMULATION
         // ===========================
         async function revealLeaderboard() {
-            // Erst jetzt rufen wir die echten Daten ab
-            await fetchLeaderboard(); 
-            
-            const table = document.getElementById('leaderboard-table');
-            const entries = table.querySelectorAll('.leaderboard-entry');
-            
-            // Simpler "Fill-up" Effekt von unten nach oben
-            entries.forEach((el, index) => {
-                el.style.opacity = '0';
-                el.style.transform = 'translateY(20px)';
-                
-                setTimeout(() => {
-                    el.style.transition = 'all 0.5s ease-out';
-                    el.style.opacity = '1';
-                    el.style.transform = 'translateY(0)';
-                }, index * 150); // Gestaffeltes Einblenden
-            });
-        }
-
-        async function fetchLeaderboard() {
             try {
+                // Leaderboard-Daten laden
                 const res = await fetch('/api/participants');
                 if (!res.ok) throw new Error("Leaderboard fetch failed");
                 const data = await res.json();
                 leaderboardData = data.participants || [];
-                animateLeaderboardUpdate();
+
+                // Top 25 in die Tabelle füllen
+                const table = document.getElementById('leaderboard-table');
+                table.innerHTML = '';
+                
+                leaderboardData.slice(0, 25).forEach((entry, index) => {
+                    const el = document.createElement('div');
+                    el.className = 'leaderboard-entry';
+                    el.innerHTML = `
+                        <div class="lb-rank">${index + 1}</div>
+                        <div class="lb-name">${entry.nickname}</div>
+                        <div class="lb-score">${entry.score || 0} Pkt.</div>
+                    `;
+                    table.appendChild(el);
+                });
+
+                // Einfache Slide-in Animation (von unten nach oben, gestaffelt)
+                const entries = table.querySelectorAll('.leaderboard-entry');
+                entries.forEach((el, index) => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(20px)';
+                    el.offsetHeight; // Force reflow
+                    
+                    setTimeout(() => {
+                        el.style.transition = 'all 0.5s ease-out';
+                        el.style.opacity = '1';
+                        el.style.transform = 'translateY(0)';
+                    }, index * 100); // 100ms Verzögerung zwischen Items
+                });
             } catch (e) {
-                console.error("Leaderboard error:", e);
+                console.error("Leaderboard reveal error:", e);
             }
-        }
-
-        // ===========================
-        // LEADERBOARD FLIP ANIMATION
-        // ===========================
-        function animateLeaderboardUpdate() {
-            const table = document.getElementById('leaderboard-table');
-            const newEntries = leaderboardData.slice(0, 10);
-
-            const newOrder = newEntries.map(e => e.nickname).join(',');
-            const oldOrder = previousLeaderboardOrder.join(',');
-
-            if (newOrder === oldOrder && table.children.length > 0) {
-                return; // Keine Änderung
-            }
-
-            // FLIP Animation (Optimiert gegen Layout Thrashing)
-            
-            // 1. FIRST (Old positions lesen)
-            const oldRects = new Map();
-            Array.from(table.children).forEach(el => {
-                oldRects.set(el.getAttribute('data-nickname'), el.getBoundingClientRect());
-            });
-
-            // 2. DOM UPDATE (DocumentFragment für bessere Performance)
-            previousLeaderboardOrder = newOrder.split(',');
-            table.innerHTML = '';
-            const fragment = document.createDocumentFragment();
-            
-            newEntries.forEach((entry, index) => {
-                const el = document.createElement('div');
-                el.className = 'leaderboard-entry';
-                el.setAttribute('data-nickname', entry.nickname);
-                el.innerHTML = `
-                    <div class="lb-rank">${index + 1}</div>
-                    <div class="lb-name">${entry.nickname}</div>
-                    <div class="lb-score">${entry.score || 0} Pkt.</div>
-                `;
-                fragment.appendChild(el);
-            });
-            table.appendChild(fragment);
-
-            // 3. LAST (New positions lesen)
-            const newRects = new Map();
-            const newElements = Array.from(table.children);
-            newElements.forEach(el => {
-                newRects.set(el.getAttribute('data-nickname'), el.getBoundingClientRect());
-            });
-
-            // 4. INVERT (Transformieren ohne Transition)
-            newElements.forEach(el => {
-                const nickname = el.getAttribute('data-nickname');
-                const oldRect = oldRects.get(nickname);
-                const newRect = newRects.get(nickname);
-
-                if (oldRect && newRect) {
-                    const deltaY = oldRect.top - newRect.top;
-                    el.style.transition = 'none'; // WICHTIG!
-                    el.style.transform = `translateY(${deltaY}px)`;
-                    el.style.opacity = '0.8';
-                }
-            });
-
-            // 5. PLAY (Reflow nur 1x triggern, dann Transition setzen)
-            table.offsetHeight; // Einziger Reflow!
-
-            newElements.forEach(el => {
-                el.style.transition = 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-                el.style.transform = 'translateY(0)';
-                el.style.opacity = '1';
-            });
         }
 
         // ===========================
@@ -424,29 +359,24 @@
         async function runKORoundTimeline(r32Matches, r16Matches, qfMatches) {
             const container = document.getElementById('ko-rounds-container');
             const titleElement = document.getElementById('current-round-title');
-            await revealLeaderboard(); // Leaderboard hier schon enthüllen, da es in Phase 2 immer sichtbar ist und die K.O.-Runden spannender wirken
-
-
+            
             if (r32Matches.length > 0) {
                 if (titleElement) titleElement.textContent = "Sechzehntelfinale";
                 await runKOStage(container, r32Matches, 16, 'stage1');
-                await sleep(500); 
-                await fetchLeaderboard(); // Leaderboard nach Runde 1 aktualisieren
                 await sleep(3000);
             }
             if (r16Matches.length > 0) {
                 if (titleElement) titleElement.textContent = "Achtelfinale";
                 await runKOStage(container, r16Matches, 8, 'stage2');
-                await sleep(500); 
-                await fetchLeaderboard(); // Leaderboard nach Runde 1 aktualisieren
                 await sleep(3000);
             }
             if (qfMatches.length > 0) {
                 if (titleElement) titleElement.textContent = "Viertelfinale";
                 await runKOStage(container, qfMatches, 4, 'stage3');
-                await sleep(500); 
-                await fetchLeaderboard(); // Leaderboard nach Runde 1 aktualisieren
             }
+            // und noch das Leaderboard 
+            await sleep(500); 
+            await revealLeaderboard();
         }
 
         async function runKOStage(container, matches, gridSize, stageName) {
@@ -516,8 +446,6 @@
             document.getElementById('phase-2-content').style.display = 'none';
             document.getElementById('phase-3-content').style.display = 'block';
 
-            await revealLeaderboard(); // Leaderboard hier schon enthüllen, da es in Phase 3 immer sichtbar ist und die Finalspiele spannender wirken
-
             const data = masterData || await fetchSimData();
             if (!data) return;
 
@@ -549,8 +477,6 @@
                     { data: semifinals[0], card: card1 },
                     { data: semifinals[1], card: card2 }
                 ]);
-                await sleep(500); 
-                await fetchLeaderboard(); // Leaderboard aktualisieren
                 await sleep(3000); // Pause vor dem Finale
             }
 
@@ -567,7 +493,8 @@
                     { data: finals[0], card: finalCard }
                 ]);
                 await sleep(500); 
-                await fetchLeaderboard(); // Leaderboard aktualisieren
+                // Leaderboard am Ende der Simulation anzeigen
+                await revealLeaderboard(); 
             }
         }
 

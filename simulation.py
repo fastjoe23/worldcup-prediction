@@ -18,38 +18,121 @@ GROUPS = {
     "Gruppe I": ["Frankreich", "Senegal", "Irak", "Norwegen"],
     "Gruppe J": ["Argentinien", "Algerien", "Österreich", "Jordanien"],
     "Gruppe K": ["Portugal", "DR Kongo", "Usbekistan", "Kolumbien"],
-    "Gruppe L": ["England", "Kroatien", "Ghana", "Panama"]
+    "Gruppe L": ["England", "Kroatien", "Ghana", "Panama"],
 }
 
 # am Spieltag ggf. nochmal aktualisieren, damit die Simulation bekannte Ergebnisse berücksichtigt
 TEAM_RATINGS = {
-    "Spanien": 2165, "Argentinien": 2113, "Frankreich": 2082, "England": 2020,
-    "Kolumbien": 1975, "Portugal": 1984, "Brasilien": 1984, "Niederlande": 1961,
-    "Ecuador": 1933, "Kroatien": 1930, "Deutschland": 1923, "Norwegen": 1912,
-    "Türkei": 1902, "Schweiz": 1889, "Belgien": 1866, "Japan": 1904, "Österreich": 1827,
-    "Uruguay": 1892, "USA": 1712, "Mexiko": 1858, "Marokko": 1821, "Paraguay": 1833,
-    "Schottland": 1767,  "Südkorea": 1752, "Tschechien": 1726, "Australien": 1783,
-    "Schweden": 1719, "Algerien": 1743, "Südafrika": 1524, "Kanada": 1784,
-    "Ägypten": 1689, "Panama": 1737, "Ghana": 1505, "Katar": 1425, 
-    "Irak": 1607, "Saudi-Arabien": 1568, "Jordanien": 1690, "Iran": 1760,
-    "Curaçao": 1436, "Haiti": 1532, "Neuseeland": 1585, "DR Kongo": 1655,
-    "Bosnien & Herzegowina": 1594, "Kap Verde": 1549, "Usbekistan": 1727, 
-    "Senegal": 1879, "Elfenbeinküste": 1676, "Tunesien": 1636
+    "Spanien": 2165,
+    "Argentinien": 2113,
+    "Frankreich": 2082,
+    "England": 2020,
+    "Kolumbien": 1975,
+    "Portugal": 1984,
+    "Brasilien": 1984,
+    "Niederlande": 1961,
+    "Ecuador": 1933,
+    "Kroatien": 1930,
+    "Deutschland": 1923,
+    "Norwegen": 1912,
+    "Türkei": 1902,
+    "Schweiz": 1889,
+    "Belgien": 1866,
+    "Japan": 1904,
+    "Österreich": 1827,
+    "Uruguay": 1892,
+    "USA": 1712,
+    "Mexiko": 1858,
+    "Marokko": 1821,
+    "Paraguay": 1833,
+    "Schottland": 1767,
+    "Südkorea": 1752,
+    "Tschechien": 1726,
+    "Australien": 1783,
+    "Schweden": 1719,
+    "Algerien": 1743,
+    "Südafrika": 1524,
+    "Kanada": 1784,
+    "Ägypten": 1689,
+    "Panama": 1737,
+    "Ghana": 1505,
+    "Katar": 1425,
+    "Irak": 1607,
+    "Saudi-Arabien": 1568,
+    "Jordanien": 1690,
+    "Iran": 1760,
+    "Curaçao": 1436,
+    "Haiti": 1532,
+    "Neuseeland": 1585,
+    "DR Kongo": 1655,
+    "Bosnien & Herzegowina": 1594,
+    "Kap Verde": 1549,
+    "Usbekistan": 1727,
+    "Senegal": 1879,
+    "Elfenbeinküste": 1676,
+    "Tunesien": 1636,
+}
+
+MARKET_VALUES = {
+    "England": 1290.0,
+    "Frankreich": 1270.0,
+    "Spanien": 919.0,
+    "Brasilien": 913.3,
+    "Portugal": 810.0,
+    "Niederlande": 801.0,
+    "Deutschland": 784.0,
+    "Argentinien": 539.5,
+    "Norwegen": 478.9,
+    "Belgien": 435.0,
+    "Senegal": 395.4,
+    "Marokko": 342.4,
+    "Ecuador": 320.3,
+    "Kolumbien": 295.4,
+    "Elfenbeinküste": 291.43,
+    "Kroatien": 264.2,
+    "Schweiz": 240.4,
+    "Schottland": 220.9,
+    "Österreich": 216.2,
+    "Japan": 214.6,
+    "Algerien": 206.35,
+    "Mexiko": 192.5,
+    "USA": 156.3,
+    "Ghana": 141.53,
+    "Kanada": 134.45,
+    "Südkorea": 128.6,
+    "Paraguay": 112.35,
+    "Uruguay": 102.4,
+    "Tunesien": 74.85,
+    "Usbekistan": 63.55,
+    "Haiti": 40.38,
+    "Iran": 34.3,
+    "Australien": 31.73,
+    "Panama": 30.63,
+    "Saudi-Arabien": 30.6,
+    "Kap Verde": 28.3,
+    "Südafrika": 27.85,
+    "Curaçao": 26.3,
+    "Jordanien": 15.4,
+    "Neuseeland": 14.08,
+    "Ägypten": 11.48,
+    "Katar": 8.95,
 }
 
 
 KNOWN_RESULTS = {
-    #("Mexiko", "Südafrika"): (20, 11)
-    }
+    # ("Mexiko", "Südafrika"): (20, 11)
+}
 
 # ==========================================
 # 2. SIMULATIONS-LOGIK
 # ==========================================
 
+
 class WorldCupSimulation:
     def __init__(self):
         self.groups = GROUPS
         self.ratings = TEAM_RATINGS
+        self.market_values = MARKET_VALUES
         self.known_results = KNOWN_RESULTS
 
     def get_known_score(self, team_a, team_b):
@@ -60,18 +143,42 @@ class WorldCupSimulation:
             return score_a, score_b
         return None
 
-    def simulate_match_score(self, team_a, team_b, is_knockout=False):
+    def simulate_match_score(self, team_a, team_b, is_knockout=False, mode="combined"):
         rating_a = self.ratings.get(team_a, 1500)
         rating_b = self.ratings.get(team_b, 1500)
 
-        # --- Elo → expected goals (Poisson intensities) ---
+        mv_a = self.market_values.get(team_a, 50)
+        mv_b = self.market_values.get(team_b, 50)
+
+        # --- 1. Modus-Schalter (Gewichtung festlegen) ---
+        if mode == "elo":
+            weight_elo = 1.0
+        elif mode == "mv":
+            weight_elo = 0.0
+        else:  # mode == 'combined'
+            # 50/50 in der K.O.-Phase, 70/30 in der Gruppenphase
+            weight_elo = 0.5 if is_knockout else 0.7
+
+        weight_mv = 1.0 - weight_elo
+
+        # --- 2. Wahrscheinlichkeiten berechnen ---
+        prob_elo_a = 1 / (1 + 10 ** ((rating_b - rating_a) / 400))
+
+        total_mv = mv_a + mv_b
+        prob_mv_a = mv_a / total_mv if total_mv > 0 else 0.5
+
+        p_comb_a = (prob_elo_a * weight_elo) + (prob_mv_a * weight_mv)
+
+        # Extreme abfangen für den Logarithmus
+        p_comb_a = max(0.01, min(0.99, p_comb_a))
+
+        # --- 3. Rückrechnung in "effektive" Stärkedifferenz ---
+        effective_strength_diff = math.log10(p_comb_a / (1 - p_comb_a))
+
+        # --- 4. Expected Goals (Poisson Intensitäten) ---
         avg_goals = 1.35
-        elo_scale = 400
-
-        strength_diff = (rating_a - rating_b) / elo_scale
-
-        lambda_a = avg_goals * math.exp(strength_diff)
-        lambda_b = avg_goals * math.exp(-strength_diff)
+        lambda_a = avg_goals * math.exp(effective_strength_diff)
+        lambda_b = avg_goals * math.exp(-effective_strength_diff)
 
         # --- Pure Python Poisson sampling (Knuth's Algorithm) ---
         def poisson(lam):
@@ -83,7 +190,6 @@ class WorldCupSimulation:
                 p *= random.random()
             return k - 1
 
-        # 90 Minuten simulieren
         score_a = poisson(lambda_a)
         score_b = poisson(lambda_b)
 
@@ -95,15 +201,11 @@ class WorldCupSimulation:
 
         # --- knockout resolution ---
         if is_knockout and score_a == score_b:
-            # Verlängerung: 30 Minuten sind 1/3 der Spielzeit
             score_a += poisson(lambda_a / 3)
             score_b += poisson(lambda_b / 3)
 
             if score_a == score_b:
-                # Elfmeterschießen!
-                # Leicht Elo-basiert, aber mit SEHR hohem Zufallsfaktor (Nervensache)
                 prob_a_wins_penalties = lambda_a / (lambda_a + lambda_b)
-                # Wir zwingen ein klares Ergebnis für das Elfmeterschießen
                 if random.random() < prob_a_wins_penalties:
                     score_a += 1
                 else:
@@ -111,7 +213,7 @@ class WorldCupSimulation:
 
         return score_a, score_b
 
-    def run_complete_tournament(self):
+    def run_complete_tournament(self, mode="combined"):
         group_winners_for_api = {}
         standings = {}
         group_stats = {}
@@ -127,15 +229,14 @@ class WorldCupSimulation:
                 if known:
                     s1, s2 = known
                 else:
-                    s1, s2 = self.simulate_match_score(t1, t2)
+                    s1, s2 = self.simulate_match_score(
+                        t1, t2, is_knockout=False, mode=mode
+                    )
 
                 # Ergebnisse speichern für API-Ausgabe
-                group_matches.append({
-                    "group": group_id,
-                    "home": t1,
-                    "away": t2,
-                    "score": f"{s1}:{s2}"
-                })
+                group_matches.append(
+                    {"group": group_id, "home": t1, "away": t2, "score": f"{s1}:{s2}"}
+                )
 
                 if s1 > s2:
                     stats[t1]["p"] += 3
@@ -145,17 +246,16 @@ class WorldCupSimulation:
                     stats[t1]["p"] += 1
                     stats[t2]["p"] += 1
 
-                stats[t1]["diff"] += (s1 - s2)
-                stats[t2]["diff"] += (s2 - s1)
+                stats[t1]["diff"] += s1 - s2
+                stats[t2]["diff"] += s2 - s1
                 stats[t1]["goals"] += s1
                 stats[t2]["goals"] += s2
 
             sorted_group = sorted(
                 teams,
                 key=lambda t, s=stats: (s[t]["p"], s[t]["diff"], s[t]["goals"]),
-                reverse=True
+                reverse=True,
             )
-
 
             standings[group_id] = sorted_group
             group_stats[group_id] = stats
@@ -165,15 +265,14 @@ class WorldCupSimulation:
         # --- BESTE DRITTPLATZIERTE ---
         thirds = []
         for g_id, sorted_teams in standings.items():
-            thirds.append({
-                "team": sorted_teams[2],
-                "stats": group_stats[g_id][sorted_teams[2]]  
-            })
+            thirds.append(
+                {"team": sorted_teams[2], "stats": group_stats[g_id][sorted_teams[2]]}
+            )
 
         sorted_thirds = sorted(
             thirds,
             key=lambda x: (x["stats"]["p"], x["stats"]["diff"], x["stats"]["goals"]),
-            reverse=True
+            reverse=True,
         )
 
         # beste 8 Drittplatzierten qualifizieren sich für die K.O.-Phase
@@ -197,35 +296,38 @@ class WorldCupSimulation:
             (standings["B"][0], t[6]),
             (standings["J"][0], standings["H"][1]),
             (standings["K"][0], t[7]),
-            (standings["D"][1], standings["G"][1])
+            (standings["D"][1], standings["G"][1]),
         ]
 
         def play_ko_bracket(matchups):
             winners = []
             details = []
             for t1, t2 in matchups:
-                s1, s2 = self.simulate_match_score(t1, t2, is_knockout=True)
+                s1, s2 = self.simulate_match_score(t1, t2, is_knockout=True, mode=mode)
                 winner = t1 if s1 > s2 else t2
                 winners.append(winner)
-                details.append({
-                    "team1": t1,
-                    "team2": t2,
-                    "score": f"{s1}:{s2}",
-                    "winner": winner
-                })
+                details.append(
+                    {"team1": t1, "team2": t2, "score": f"{s1}:{s2}", "winner": winner}
+                )
             return winners, details
 
         round_of_16_teams, r32_results = play_ko_bracket(r32_matchups)
 
-        r16_matchups = [(round_of_16_teams[i], round_of_16_teams[i+1]) for i in range(0, 16, 2)]
+        r16_matchups = [
+            (round_of_16_teams[i], round_of_16_teams[i + 1]) for i in range(0, 16, 2)
+        ]
         quarter_finalists, r16_results = play_ko_bracket(r16_matchups)
 
-        qf_matchups = [(quarter_finalists[i], quarter_finalists[i+1]) for i in range(0, 8, 2)]
+        qf_matchups = [
+            (quarter_finalists[i], quarter_finalists[i + 1]) for i in range(0, 8, 2)
+        ]
         qf_pairings = [{"team1": t1, "team2": t2} for t1, t2 in qf_matchups]
 
         semi_finalists, qf_results = play_ko_bracket(qf_matchups)
 
-        sf_matchups = [(semi_finalists[i], semi_finalists[i+1]) for i in range(0, 4, 2)]
+        sf_matchups = [
+            (semi_finalists[i], semi_finalists[i + 1]) for i in range(0, 4, 2)
+        ]
         finalists, sf_results = play_ko_bracket(sf_matchups)
 
         f_matchups = [(finalists[0], finalists[1])]
@@ -236,14 +338,16 @@ class WorldCupSimulation:
             "qf_pairings": qf_pairings,
             "semi_finalists": semi_finalists,
             "champion": champion_list[0],
-            "group_standings": {g_id: [{"team": t, **group_stats[g_id][t]} for t in teams] 
-                               for g_id, teams in standings.items()},
+            "group_standings": {
+                g_id: [{"team": t, **group_stats[g_id][t]} for t in teams]
+                for g_id, teams in standings.items()
+            },
             "full_details": {
                 "group_matches": group_matches,
                 "r32": r32_results,
                 "r16": r16_results,
                 "qf": qf_results,
                 "sf": sf_results,
-                "f": f_results
-            }
+                "f": f_results,
+            },
         }

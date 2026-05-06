@@ -1,6 +1,5 @@
 import os
 import json
-import time 
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
@@ -14,18 +13,15 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 from simulation import WorldCupSimulation
 
-
 load_dotenv()
-
-# Globale Variablen (leben pro Worker isoliert im RAM)
-# fuer die Caching-Strategie der aktuellen Phase, damit nicht bei jedem API-Call die DB abgefragt werden muss
-_cached_phase = None
-_phase_last_fetched = 0
-CACHE_TTL = 2.0  # Cache für 2 Sekunden gültig
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
+# Secret Key für Session-Management (muss in der .env Datei gesetzt werden)
+secret_key = os.getenv("SECRET_KEY")
+if not secret_key:
+    raise RuntimeError("SECRET_KEY muss als Umgebungsvariable gesetzt sein!")
+app.secret_key = secret_key
 
 
 # --- SESSION CONFIGURATION ---
@@ -94,15 +90,13 @@ def validate_nickname(nickname):
     return True, None
 
 
-def validate_selections(selections):
+def validate_selections(selections, phase):
     """Validate selections data based on current phase"""
-    phase = get_phase()
-
     # RUNDE_1: 12 groups - expect dict
     if "RUNDE_1" in phase:
         if not isinstance(selections, dict):
             return False, "Selections müssen ein Objekt sein"
-        if json.dumps(selections).__sizeof__() > MAX_SELECTIONS_SIZE:
+        if len(json.dumps(selections)) > MAX_SELECTIONS_SIZE:
             return False, "Selections zu groß"
 
         # Check that exactly 12 groups are present
@@ -185,22 +179,18 @@ def init_db():
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             # Tabelle für Teilnehmer (live Übersicht während Nickname-Phase)
-            cur.execute(
-                """CREATE TABLE IF NOT EXISTS participants (
+            cur.execute("""CREATE TABLE IF NOT EXISTS participants (
                 id SERIAL PRIMARY KEY, nickname VARCHAR(50) NOT NULL UNIQUE,
                 score INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
-            )
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
 
             # Tabelle für Tipps und Ergebnisse
-            cur.execute(
-                """CREATE TABLE IF NOT EXISTS predictions (
+            cur.execute("""CREATE TABLE IF NOT EXISTS predictions (
                 id SERIAL PRIMARY KEY, nickname VARCHAR(50) NOT NULL,
                 phase VARCHAR(50) NOT NULL,
                 selections JSONB NOT NULL, score INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(nickname, phase))"""
-            )
+                UNIQUE(nickname, phase))""")
 
             cur.execute(
                 """CREATE TABLE IF NOT EXISTS tournament_results (
@@ -210,10 +200,15 @@ def init_db():
             )
 
             # Tabelle für den Event-Status (nur 1 Zeile)
-            cur.execute(
-                """CREATE TABLE IF NOT EXISTS system_state (
-                id INTEGER PRIMARY KEY, current_phase VARCHAR(50) NOT NULL)"""
-            )
+            cur.execute("""CREATE TABLE IF NOT EXISTS system_state (
+                id INTEGER PRIMARY KEY, current_phase VARCHAR(50) NOT NULL)""")
+
+            # Indizes für Performance
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_predictions_phase    ON predictions(phase);
+                CREATE INDEX IF NOT EXISTS idx_predictions_nickname ON predictions(nickname);
+                CREATE INDEX IF NOT EXISTS idx_participants_score   ON participants(score DESC);
+                """)
 
             # Startwert setzen, falls leer
             cur.execute(
@@ -225,36 +220,23 @@ def init_db():
 
 # Hilfsfunktionen für den Status
 def get_phase():
-    global _cached_phase, _phase_last_fetched
-    current_time = time.time()
 
-    # Cache hit: Ist der Wert noch frisch?
-    if _cached_phase and (current_time - _phase_last_fetched < CACHE_TTL):
-        return _cached_phase
-
-    # Cache miss: Abgelaufen oder noch leer -> DB fragen
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT current_phase FROM system_state WHERE id = 1")
-            _cached_phase = cur.fetchone()["current_phase"]
-            _phase_last_fetched = current_time
+            phase = cur.fetchone()["current_phase"]
 
-    return _cached_phase
+    return phase
 
 
 def set_phase(new_phase):
-    global _cached_phase, _phase_last_fetched
-    
+
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE system_state SET current_phase = %s WHERE id = 1", (new_phase,)
             )
         conn.commit()
-
-    # Lokalen Cache im aktuellen Worker sofort aktualisieren
-    _cached_phase = new_phase
-    _phase_last_fetched = time.time()
 
 
 # Initialize database on module import (works with Gunicorn and local development)
@@ -282,10 +264,7 @@ def admin_page():
 
 @app.route("/dashboard")
 def dashboard_router():
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT current_phase FROM system_state WHERE id = 1")
-            phase = cur.fetchone()["current_phase"]
+    phase = get_phase()
 
     # Weiterleitung basierend auf deinem Bauplan
     if phase in ["START", "RUNDE_1_NICKNAME"]:
@@ -695,7 +674,7 @@ def submit_selections():
     selections = data.get("selections")
 
     # Input validation
-    valid, error = validate_selections(selections)
+    valid, error = validate_selections(selections, current_phase)
     if not valid:
         return jsonify({"error": error}), 400
 

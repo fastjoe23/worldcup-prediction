@@ -465,10 +465,7 @@
         function createMatchCard(match, index, showEmpty = false) {
             const card = document.createElement('div');
             card.className = 'match-card';
-            let displayScore = showEmpty ? '0-0' : '0-0';
-            if (!showEmpty && match.score) {
-                displayScore = match.score;
-            }
+            let displayScore = (!showEmpty && match.score) ? match.score : '0-0';
             
             const t1 = match.team1 || match.home || '—';
             const t2 = match.team2 || match.away || '—';

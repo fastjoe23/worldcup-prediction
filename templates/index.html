@@ -247,12 +247,12 @@
             
             try {
                 const res = await fetch('/api/latest-results');
-                const data = await res.json();
                 
                 if (!res.ok) {
                     container.innerHTML = "<h1>⚠️ Fehler</h1><p>Keine Ergebnisse gefunden!</p>";
                     return;
                 }
+                const data = await res.json();
                 
                 const pairings = data.pairings;
                 
@@ -322,13 +322,12 @@
             
             try {
                 const res = await fetch('/api/latest-results');
-                const data = await res.json();
-                
+
                 if (!res.ok) {
                     container.innerHTML = "<h1>⚠️ Fehler</h1><p>Keine Ergebnisse aus Runde 2 gefunden!</p>";
                     return;
                 }
-                
+                const data = await res.json();                
                 const teams = data.teams;
                 
                 // Fallback check for empty teams

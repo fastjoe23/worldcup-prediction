@@ -1,5 +1,6 @@
 import os
 import json
+import time 
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
@@ -13,7 +14,14 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 from simulation import WorldCupSimulation
 
+
 load_dotenv()
+
+# Globale Variablen (leben pro Worker isoliert im RAM)
+# fuer die Caching-Strategie der aktuellen Phase, damit nicht bei jedem API-Call die DB abgefragt werden muss
+_cached_phase = None
+_phase_last_fetched = 0
+CACHE_TTL = 2.0  # Cache für 2 Sekunden gültig
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -217,22 +225,36 @@ def init_db():
 
 # Hilfsfunktionen für den Status
 def get_phase():
+    global _cached_phase, _phase_last_fetched
+    current_time = time.time()
 
+    # Cache hit: Ist der Wert noch frisch?
+    if _cached_phase and (current_time - _phase_last_fetched < CACHE_TTL):
+        return _cached_phase
+
+    # Cache miss: Abgelaufen oder noch leer -> DB fragen
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT current_phase FROM system_state WHERE id = 1")
-            phase = cur.fetchone()["current_phase"]
-        return phase
+            _cached_phase = cur.fetchone()["current_phase"]
+            _phase_last_fetched = current_time
+
+    return _cached_phase
 
 
 def set_phase(new_phase):
-
+    global _cached_phase, _phase_last_fetched
+    
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE system_state SET current_phase = %s WHERE id = 1", (new_phase,)
             )
         conn.commit()
+
+    # Lokalen Cache im aktuellen Worker sofort aktualisieren
+    _cached_phase = new_phase
+    _phase_last_fetched = time.time()
 
 
 # Initialize database on module import (works with Gunicorn and local development)

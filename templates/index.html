@@ -139,7 +139,7 @@
             if (phase === "START") {
                 // wir leeren den local.storage um alle Tipps und Nicknames zu löschen
                 localStorage.clear();
-                container.innerHTML = "<h1>🏆 Willkommen!</h1><p>Gleich geht die erste Tipprunde los. Schau auf den Beamer!</p>";
+                container.innerHTML = "<h1>🏆 Willkommen!</h1><p>Gleich geht es los!</p>";
             } 
             else if (phase === "RUNDE_1_NICKNAME") {
                 // Check if already submitted
@@ -223,7 +223,7 @@
                 // Finals: Select 1 champion from 4 semi-finalists
                 loadFinalsUI(container);
             }
-            else if (phase === "FINALE_SIM") {
+            else if (phase === "ENDE") {
                 // Game Over: Show final summary
                 loadFinaleSummary(container);
             }

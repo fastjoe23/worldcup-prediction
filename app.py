@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
@@ -73,20 +74,29 @@ PHASES = [
 # Input validation constraints
 MAX_NICKNAME_LENGTH = 50
 MAX_SELECTIONS_SIZE = 5000  # Max JSON size in bytes
+# validation regex for nicknames
+_NICKNAME_RE = re.compile(
+    r"^[\w \-äöüßÄÖÜ"
+    r"\U0001F300-\U0001F9FF"  # Smileys, Tiere, Essen, Reisen...
+    r"\U00002600-\U000027BF"  # Misc Symbols (⚽ ☀️ ♥️ ...)
+    r"\U0001F1E6-\U0001F1FF"  # LÄNDERFLAGGEN (Wichtig für die WM! 🇩🇪 🇧🇷)
+    r"]+$",
+    re.UNICODE,
+)
 
 
-# --- INPUT VALIDATION ---
-def validate_nickname(nickname):
-    """Validate nickname input"""
-    if not nickname or not isinstance(nickname, str):
+# --- VALIDIERUNGSFUNKTIONEN ---
+def validate_nickname(nickname: str) -> tuple[bool, str | None]:
+    # nickname wird schon gestript uebergeben
+    if not isinstance(nickname, str) or not nickname.strip():
         return False, "Nickname erforderlich"
-    if len(nickname) > MAX_NICKNAME_LENGTH:
-        return False, f"Nickname zu lang (max {MAX_NICKNAME_LENGTH})"
-    if len(nickname) < 2:
-        return False, "Nickname zu kurz (min 2)"
-    # Allow only alphanumeric, spaces, and basic punctuation
-    if not all(c.isalnum() or c in " -_äöüßÄÖÜ" for c in nickname):
-        return False, "Ungültige Zeichen im Nickname"
+
+    if not 2 <= len(nickname) <= MAX_NICKNAME_LENGTH:
+        return False, f"Nickname: 2–{MAX_NICKNAME_LENGTH} Zeichen erforderlich"
+
+    if not _NICKNAME_RE.match(nickname):
+        return False, "Ungültige Zeichen im Nickname (nur Text und Emojis erlaubt)"
+
     return True, None
 
 
@@ -614,7 +624,7 @@ def submit_nickname():
     nickname = data.get("nickname")
 
     # Input validation
-    valid, error = validate_nickname(nickname)
+    valid, error = validate_nickname(nickname.strip())
     if not valid:
         return jsonify({"error": error}), 400
 
@@ -670,6 +680,11 @@ def submit_selections():
             ),
             400,
         )
+
+    # nickname validieren
+    valid, error = validate_nickname(nickname.strip())
+    if not valid:
+        return jsonify({"error": error}), 400
 
     selections = data.get("selections")
 

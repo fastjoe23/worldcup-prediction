@@ -555,9 +555,21 @@
                 await runMatchesSimultaneously([
                     { data: finals[0], card: finalCard }
                 ]);
-                await sleep(500); 
-                // Leaderboard am Ende der Simulation nicht anzeigen
-                //await revealLeaderboard(); 
+                // kurze Pause nach dem Abpfiff, bevor der Champion enthüllt wird
+                await sleep(1500); 
+                
+                // Anzeige des simulierten Weltmeisters
+                const championName = finals[0].winner;
+                
+                const championDiv = document.createElement('div');
+                championDiv.style.marginTop = '30px';
+                championDiv.style.textAlign = 'center';
+                championDiv.style.fontSize = '1.8em';
+                championDiv.style.color = '#1a1a2e';
+                championDiv.style.animation = 'fadeIn 1s ease';
+                championDiv.innerHTML = `Weltmeister: <strong>${championName}</strong>`;
+                
+                container.appendChild(championDiv);
             }
         }
 

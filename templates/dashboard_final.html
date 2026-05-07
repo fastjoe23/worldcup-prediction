@@ -6,6 +6,12 @@
     <title>WM 2026 - Siegerehrung</title>
     <link rel="stylesheet" href="/static/dashboard_style.css">
     <style>
+        /* Layout Korrektur für Leaderboard-Platz */
+        .phase-finale .main-content {
+            margin-right: 25%;
+            transition: margin-right 0.5s ease;
+        }
+
         .podium-wrapper {
             display: flex;
             justify-content: center;
@@ -28,29 +34,9 @@
             animation: riseUp 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
         }
 
-        .podium-1 {
-            background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%);
-            height: 100%;
-            width: 250px;
-            z-index: 3;
-            animation-delay: 1.5s;
-        }
-
-        .podium-2 {
-            background: linear-gradient(135deg, #E0E0E0 0%, #BDBDBD 100%);
-            height: 75%;
-            width: 220px;
-            z-index: 2;
-            animation-delay: 1s;
-        }
-
-        .podium-3 {
-            background: linear-gradient(135deg, #CD7F32 0%, #A0522D 100%);
-            height: 50%;
-            width: 200px;
-            z-index: 1;
-            animation-delay: 0s;
-        }
+        .podium-1 { background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%); height: 100%; width: 250px; z-index: 3; animation-delay: 1.5s; }
+        .podium-2 { background: linear-gradient(135deg, #E0E0E0 0%, #BDBDBD 100%); height: 75%; width: 220px; z-index: 2; animation-delay: 1s; }
+        .podium-3 { background: linear-gradient(135deg, #CD7F32 0%, #A0522D 100%); height: 50%; width: 200px; z-index: 1; animation-delay: 0.5s; }
 
         .winner-name {
             font-size: 2em;
@@ -78,22 +64,23 @@
             line-height: 1;
         }
 
+        /* Leaderboard Side-Panel Animation */
+        #leaderboard-container {
+            transform: translateX(100%);
+            transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        #leaderboard-container.visible {
+            transform: translateX(0);
+        }
+
         @keyframes riseUp {
             0% { transform: translateY(100%); opacity: 0; }
             100% { transform: translateY(0); opacity: 1; }
         }
-
-        .confetti {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background-color: #f2d74e;
-            opacity: 0;
-        }
     </style>
 </head>
 <body class="phase-finale" style="overflow: hidden;">
-    <!-- Header mit Logos -->
     <header class="dashboard-header">
         <div class="logo-left">
             <img src="/static/DHBW_d_S_46mm_4c-1920w.webp" alt="DHBW Logo" class="header-logo">
@@ -104,17 +91,19 @@
         </div>
     </header>
 
-    <!-- Main Content Container -->
     <div class="main-content" style="flex-direction: column; justify-content: center; padding-top: 40px;">
         <h1 class="stage-title" style="font-size: 4em; margin-bottom: 20px;">Endstand</h1>
-        
         <div class="podium-wrapper" id="podium-wrapper">
-            <!-- Wird per JS befüllt -->
             <h2 style="color: #666;">Lade Ergebnisse...</h2>
         </div>
     </div>
 
-    <!-- Sponsoren-Banner (unten) -->
+    <aside class="leaderboard-container" id="leaderboard-container">
+        <h3 class="leaderboard-title">🏆 WEITERE PLÄTZE</h3>
+        <div class="leaderboard-table" id="leaderboard-table">
+            </div>
+    </aside>
+
     <footer class="sponsors-banner">
         <span class="sponsor-text">Partner:</span>
         <img src="/static/adesso_basic_Color_RGB-71eb02c9-1920w.png" alt="Sponsor 1" class="sponsor-logo">
@@ -123,57 +112,73 @@
     </footer>
 
     <script>
+        function escapeHTML(str) {
+            if (!str) return "";
+            return str.replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[tag]));
+        }
+
         async function loadFinalResults() {
             try {
                 const res = await fetch('/api/participants');
                 const data = await res.json();
                 const participants = data.participants || [];
                 
-                const wrapper = document.getElementById('podium-wrapper');
-                
-                if (participants.length === 0) {
-                    wrapper.innerHTML = "<h2>Keine Teilnehmer gefunden.</h2>";
-                    return;
-                }
+                if (participants.length === 0) return;
 
-                // Wir brauchen mindestens 3 leere Objekte, falls weniger als 3 Leute mitgespielt haben
+                // 1. Podium befüllen
                 const top3 = [
                     participants[0] || { nickname: "N/A", score: 0 },
                     participants[1] || { nickname: "N/A", score: 0 },
                     participants[2] || { nickname: "N/A", score: 0 }
                 ];
 
-                // DOM-Struktur für das Treppchen aufbauen (Reihenfolge: Platz 2, Platz 1, Platz 3 für die Optik)
-                wrapper.innerHTML = `
-                    <!-- PLATZ 2 -->
+                document.getElementById('podium-wrapper').innerHTML = `
                     <div class="podium-box podium-2">
-                        <div class="winner-name">${top3[1].nickname}</div>
+                        <div class="winner-name">${escapeHTML(top3[1].nickname)}</div>
                         <div class="winner-score">${top3[1].score} Pkt.</div>
                         <div class="rank-number">2</div>
                     </div>
-                    
-                    <!-- PLATZ 1 -->
                     <div class="podium-box podium-1">
                         <div style="font-size: 3em; margin-bottom: -10px;">👑</div>
-                        <div class="winner-name">${top3[0].nickname}</div>
+                        <div class="winner-name">${escapeHTML(top3[0].nickname)}</div>
                         <div class="winner-score">${top3[0].score} Pkt.</div>
                         <div class="rank-number">1</div>
                     </div>
-                    
-                    <!-- PLATZ 3 -->
                     <div class="podium-box podium-3">
-                        <div class="winner-name">${top3[2].nickname}</div>
+                        <div class="winner-name">${escapeHTML(top3[2].nickname)}</div>
                         <div class="winner-score">${top3[2].score} Pkt.</div>
                         <div class="rank-number">3</div>
                     </div>
                 `;
+
+                // 2. Leaderboard (Plätze 4 - 25) vorbereiten
+                const table = document.getElementById('leaderboard-table');
+                table.innerHTML = '';
+                
+                participants.slice(3, 25).forEach((entry, index) => {
+                    const el = document.createElement('div');
+                    el.className = 'leaderboard-entry';
+                    el.innerHTML = `
+                        <div class="lb-rank">${index + 4}</div>
+                        <div class="lb-name">${escapeHTML(entry.nickname)}</div>
+                        <div class="lb-score">${entry.score || 0} Pkt.</div>
+                    `;
+                    table.appendChild(el);
+                });
+
+                // 3. Leaderboard erst nach der Podium-Animation einblenden
+                // Delay: riseUp (1.5s) + Max Delay (1.5s) + Extra Zeit zum Genießen (1.5s) = 4.5s
+                setTimeout(() => {
+                    document.getElementById('leaderboard-container').classList.add('visible');
+                }, 4500);
+
             } catch (e) {
-                console.error("Fehler beim Laden der Ergebnisse:", e);
-                document.getElementById('podium-wrapper').innerHTML = "<h2>Fehler beim Laden der Ergebnisse.</h2>";
+                console.error("Fehler:", e);
             }
         }
 
-        // Einmalig beim Start laden (kein Polling mehr nötig, da das Event vorbei ist)
         window.addEventListener('load', loadFinalResults);
     </script>
 </body>

@@ -189,7 +189,7 @@
         // ===========================
         // PHASE TRANSITION OVERLAY
         // ===========================
-        async function showTransitionMessage(message, duration = 3000) {
+        async function showTransitionMessage(message, duration = 2000) {
             const overlay = document.getElementById('phase-transition-overlay');
             const messageEl = document.getElementById('transition-message');
             
@@ -312,7 +312,7 @@
             await sleep(8000);
 
             // Ankündigung: Phase wechsel
-            await showTransitionMessage('Die Gruppenphase ist beendet!\nWir starten jetzt die K.O.-Runde...', 3000);
+            await showTransitionMessage('Die Gruppenphase ist beendet!\nWir starten jetzt die K.O.-Runde...', 2000);
             
             // View wechseln: Gruppen verstecken, K.O.-Runden zeigen
             document.getElementById('phase-1-content').style.display = 'none';

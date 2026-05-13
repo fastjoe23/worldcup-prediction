@@ -178,13 +178,19 @@
                 }
                 
                 const savedNick = localStorage.getItem('userNickname');
+                
+
                 let groupsHTML = `
                     <h1>✍️ Tipprunde ist offen!</h1>
                 `;
                 
                 if (savedNick) {
                     groupsHTML += `<p style="color: #667eea; font-size: 1.2em; margin-bottom: 20px;">👋 Willkommen, <strong>${savedNick}</strong>!</p>`;
+                } else {
+                    groupsHTML += `<p style="color: #dc3545; font-size: 1.1em; margin-bottom: 15px;">Du bist neu hier?</p>`;
+                    groupsHTML += `<input type="text" id="late_nickname" placeholder="Dein Nickname" maxlength="50" style="margin-bottom: 20px;">`;
                 }
+
                 
                 groupsHTML += `
                     <p>Tipp den Gruppensieger für jede Gruppe:</p>

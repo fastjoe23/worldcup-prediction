@@ -99,9 +99,9 @@
                         el.innerText = p.nickname;
                         stream.appendChild(el);
 
-                        // Keep only last 10 nicknames visible
+                        // Keep only last 20 nicknames visible
                         const badges = stream.querySelectorAll('.nickname-badge');
-                        if (badges.length > 10) {
+                        if (badges.length > 20) {
                             badges[0].remove();
                         }
                     }

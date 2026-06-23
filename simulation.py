@@ -170,6 +170,10 @@ KNOWN_RESULTS = {
     ("Mexiko", "Südkorea"): (1, 0),
     ("Kanada", "Katar"): (6, 0),
     ("USA", "Australien"): (2, 0),
+    ("Argentinien", "Österreich"): (2, 0),
+    ("Frankreich", "Irak"): (3, 0),
+    ("Norwegen", "Senegal"): (3, 2),
+    ("Jordanien", "Algerien"): (1, 2),
 }
 
 # ==========================================
